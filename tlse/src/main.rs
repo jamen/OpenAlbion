@@ -58,7 +58,7 @@ unsafe fn inject() {
     let fable_exe_path = find_file("Fable.exe", args.get(0), current_dir.as_path(), exe_dir)
         .expect("Couldn't find Fable.exe");
 
-    let tlse_dll_path = find_file("tlse.dll", args.get(1), current_dir.as_path(), exe_dir)
+    let tlse_dll_path = find_file("tlse_hack.dll", args.get(1), current_dir.as_path(), exe_dir)
         .expect("Couldn't find tlse.dll");
 
     let fable_exe_path_str = fable_exe_path.to_str().unwrap();

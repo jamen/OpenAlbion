@@ -34,17 +34,17 @@ unsafe extern "system" fn DllMain(dll_handle: HINSTANCE, fdv_reason: DWORD, lpv_
 unsafe extern "system" fn init(lpThreadParameter: LPVOID) -> DWORD {
     AllocConsole();
 
-    let instr_ptr = 0x00a60093 as *mut [u8; 5];
-    let instr_len = (*instr_ptr).len();
-    let mut old_protection: u32 = 0;
+    // let instr_ptr = 0x00a60093 as *mut [u8; 5];
+    // let instr_len = (*instr_ptr).len();
+    // let mut old_protection: u32 = 0;
 
-    println!("instr_ptr {:x?}", instr_ptr);
-    println!("instr_ptr len {:?}", instr_len);
+    // println!("instr_ptr {:x?}", instr_ptr);
+    // println!("instr_ptr len {:?}", instr_len);
 
-    VirtualProtectEx(GetCurrentProcess(), instr_ptr as LPVOID, instr_len, PAGE_EXECUTE_READWRITE, &mut old_protection);
-    println!("instr {:x?}", *instr_ptr);
+    // VirtualProtectEx(GetCurrentProcess(), instr_ptr as LPVOID, instr_len, PAGE_EXECUTE_READWRITE, &mut old_protection);
+    // println!("instr {:x?}", *instr_ptr);
 
-    std::ptr::write_bytes(instr_ptr, 0, instr_len);
+    // std::ptr::write_bytes(instr_ptr, 0, instr_len);
 
     // let style_bytes = WS_BORDER.to_le_bytes();
     // println!("style_bytes {:x?}", style_bytes);
@@ -53,16 +53,18 @@ unsafe extern "system" fn init(lpThreadParameter: LPVOID) -> DWORD {
     // (*instr_ptr)[3] = style_bytes[2];
     // (*instr_ptr)[4] = style_bytes[3];
 
-    VirtualProtectEx(GetCurrentProcess(), instr_ptr as LPVOID, instr_len, old_protection, null_mut());
+    // VirtualProtectEx(GetCurrentProcess(), instr_ptr as LPVOID, instr_len, old_protection, null_mut());
 
-    println!("modified instr {:x?}", *instr_ptr);
+    // println!("modified instr {:x?}", *instr_ptr);
 
     println!("flush instruction cache {}", FlushInstructionCache(GetCurrentProcess(), null_mut(), 0));
 
-    run_prompt()
+    run_prompt();
+
+    0
 }
 
-fn run_prompt() {
+unsafe fn run_prompt() {
     let mut stdout = std::io::stdout();
 
     let stdin = std::io::stdin();
