@@ -9,7 +9,7 @@ use winapi::um::handleapi::*;
 use winapi::um::memoryapi::*;
 use winapi::um::libloaderapi::*;
 use winapi::um::synchapi::*;
-use winapi::um::errhandlingapi::*;
+// use winapi::um::errhandlingapi::*;
 // use winapi::um::aclapi::*;
 
 use winapi::um::winnt::{LPSTR,HANDLE};

@@ -1,19 +1,21 @@
 #![cfg(windows)]
 #![allow(non_snake_case, unused_variables)]
 
+pub mod loc;
+
 use std::ptr::null_mut;
 use std::io::{Write,BufRead};
 
-use winapi::ctypes::*;
+// use winapi::ctypes::*;
 
 use winapi::shared::minwindef::*;
-use winapi::shared::windef::*;
+// use winapi::shared::windef::*;
 
 use winapi::um::processthreadsapi::*;
 use winapi::um::winnt::*;
 use winapi::um::consoleapi::*;
 use winapi::um::wincon::*;
-use winapi::um::winuser::*;
+// use winapi::um::winuser::*;
 use winapi::um::memoryapi::*;
 
 #[no_mangle]
