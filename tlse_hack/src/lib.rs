@@ -31,17 +31,50 @@ unsafe extern "system" fn DllMain(dll_handle: HINSTANCE, fdv_reason: DWORD, lpv_
             // write(G_SHOW_DEV_FRONTEND, &[ 1 ]);
             // println!("maybe dev frontend {}", read(G_SHOW_DEV_FRONTEND, 1)[0]);
 
-            println!("G_FULL_SCREEN {}", read(G_FULL_SCREEN, 1)[0]);
-            println!("G_ANTIALIASING_ON {}", read(G_ANTIALIASING_ON, 1)[0]);
-            println!("G_ANTIALIASING_X9 {}", read(G_ANTIALIASING_X9, 1)[0]);
+            println!("G_FULL_SCREEN {}", read(G_FULL_SCREEN, 1)[0] == 1);
+            println!("G_ANTIALIASING_ON {}", read(G_ANTIALIASING_ON, 1)[0] == 1);
+            println!("G_ANTIALIASING_X9 {}", read(G_ANTIALIASING_X9, 1)[0] == 1);
             println!("G_KICKOFF_SIZE {}", u32::from_le_bytes(read(G_KICKOFF_SIZE, 4).try_into().unwrap()));
             println!("G_PUSH_BUFFER_SIZE {}",u32::from_le_bytes( read(G_PUSH_BUFFER_SIZE, 4).try_into().unwrap()));
             println!("G_RESOLUTION_REFRESH_RATE {}", u32::from_le_bytes( read(G_RESOLUTION_REFRESH_RATE, 4).try_into().unwrap()));
             println!("G_Z_DEPTH_BUFFER {}", u32::from_le_bytes(read(G_Z_DEPTH_BUFFER, 4).try_into().unwrap()));
-            println!("G_RESOLUTION_WIDTH {}", u32::from_le_bytes(read(G_RESOLUTION_WIDTH, 4).try_into().unwrap()));
             println!("G_RESOLUTION_DEPTH {}", u32::from_le_bytes(read(G_RESOLUTION_DEPTH, 4).try_into().unwrap()));
-            println!("G_PRESENT_IMMEDIATE {}", read(G_PRESENT_IMMEDIATE, 1)[0]);
+
+            println!("G_ALLOW_DATA_GENERATION {}", read(G_ALLOW_DATA_GENERATION, 1)[0] == 1);
+            // write(G_ALLOW_DATA_GENERATION, &[ 1 ]);
+            // println!("G_ALLOW_DATA_GENERATION {}", read(G_ALLOW_DATA_GENERATION, 1)[0]);
+
+            println!("G_USE_COMPILED_DEFS {}", read(G_USE_COMPILED_DEFS, 1)[0] == 1);
+            // write(G_USE_COMPILED_DEFS, &[ 1 ]);
+            // println!("G_USE_COMPILED_DEFS {}", read(G_USE_COMPILED_DEFS, 1)[0]);
+
+            println!("G_ALLOW_BACKGROUND_PROCESSING {}", read(G_ALLOW_BACKGROUND_PROCESSING, 1)[0] == 1);
+            // write(G_ALLOW_BACKGROUND_PROCESSING, &[ 1 ]);
+            // println!("G_ALLOW_BACKGROUND_PROCESSING {}", read(G_ALLOW_BACKGROUND_PROCESSING, 1)[0]);
+
+            println!("G_PRESENT_IMMEDIATE {}", read(G_PRESENT_IMMEDIATE, 1)[0] == 1);
+            // write(G_PRESENT_IMMEDIATE, &[ 1 ]);
+            // println!("G_PRESENT_IMMEDIATE {}", read(G_PRESENT_IMMEDIATE, 1)[0]);
+
+            println!("G_SAVE_INPUTS {}", read(G_SAVE_INPUTS, 1)[0] == 1);
+            // write(G_SAVE_INPUTS, &[ 1 ]);
+            // println!("G_SAVE_INPUTS {}", read(G_SAVE_INPUTS, 1)[0]);
+
+            // let test = std::ffi::CStr::from_ptr(G_INPUT_FILE_NAME as *const std::os::raw::c_char);
+            // let test = test.to_str().unwrap();
+            // println!("G_INPUT_FILE_NAME {}", test);
+
+            println!("G_RESOLUTION_WIDTH {}", u32::from_le_bytes(read(G_RESOLUTION_WIDTH, 4).try_into().unwrap()));
+            // write(G_RESOLUTION_WIDTH, &(800u32.to_le_bytes()));
+            // println!("G_RESOLUTION_WIDTH {}", u32::from_le_bytes(read(G_RESOLUTION_WIDTH, 4).try_into().unwrap()));
+
             println!("G_RESOLUTION_HEIGHT {}", u32::from_le_bytes(read(G_RESOLUTION_HEIGHT, 4).try_into().unwrap()));
+            // write(G_RESOLUTION_HEIGHT, &(600u32.to_le_bytes()));
+            // println!("G_RESOLUTION_HEIGHT {}", u32::from_le_bytes(read(G_RESOLUTION_HEIGHT, 4).try_into().unwrap()));
+
+            println!("G_DELAY_EACH_FRAME_MS {:?}", u32::from_le_bytes(read(G_DELAY_EACH_FRAME_MS, 4).try_into().unwrap()));
+            // write(G_DELAY_EACH_FRAME_MS, &(10u32.to_le_bytes()));
+            // println!("G_DELAY_EACH_FRAME_MS {:?}", u32::from_le_bytes(read(G_DELAY_EACH_FRAME_MS, 4).try_into().unwrap()));
 
             write(G_FULL_SCREEN, &[ 0 ]);
 
