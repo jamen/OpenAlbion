@@ -15,12 +15,15 @@ pub const WIN_MAIN: usize = 0x403480;
 /// The top-most init function.
 pub const GF_MAIN: usize = 0x402510;
 pub const GF_RUN_INIT_SCRIPTS: usize = 0x413c50;
+pub const GF_UNINITIALISE: usize = 0x401b80;
 pub const C_SYSTEM_MANAGER_INIT: usize = 0x403b10;
+pub const C_SYSTEM_MANAGER__INITIALISE: usize = 0x9a6610;
 pub const CF_GET_SYSTEM_MANAGER: usize = 0x9a4ec0;
 pub const C_GAME__PLAY: usize = 0x412f90;
 
 pub const C_MAIN_GAME_COMPONENT__INIT_GRAPHICS: usize = 0x416c8a;
 // pub const C_MAIN_GAME_COMPONENT__INITIALISE_FONTS: usize = 0x416c8a;
+pub const C_MAIN_GAME_COMPONENT__GENERATE_MET_FILES_FROM_LUG_FILES: usize = 0x418c3b;
 
 pub const ZLIB_CRC32: usize = 0xc05fd0;
 /// Very large function.
@@ -60,8 +63,17 @@ pub const C_NEW_FRONTEND_GAME_COMPONENT__COMPILE_DEFS: usize = 0x42f70b;
 pub const C_NEW_FRONTEND_GAME_COMPONENT__INITIALISE_DEFS: usize = 0x42f722;
 
 pub const N_GLOBAL_CONSOLE__INITIALISE: usize = 0x419d90;
+/// Set to false when G_ONLY_BUILD_STATIC_MAPS is disabled.
+pub const N_GLOBAL_CONSOLE__ENABLE_PARTICLES: usize = 0x1375754;
 
 pub const C_PLAYER_GUI__ADD_SCREEN_MESSAGE: usize = 0x44bb90;
+
+/// Set to value of G_ALLOW_DATA_GENERATION.
+pub const C_DEFINITION_MANAGER__CREATE_COMPILED_DEFS: usize = 0x138e188;
+/// Set to value of G_ALLOW_DATA_GENERATION.
+pub const C_DEFINITION_MANAGER__CREATE_CHECKSUMS: usize = 0x138e189;
+/// Set to value of G_USE_COMPILED_DEFS.
+pub const C_DEFINITION_MANAGER__USING_COMPILED_DEFS: usize = 0x13ca7d8;
 
 
 //
@@ -81,6 +93,8 @@ pub const C_WORLD__FRAME: usize = 0x13b89bc;
 pub const G_ALLOW_DEBUG_PROFILE: usize = 0x1375741;
 pub const G_SHOW_DEV_FRONTEND: usize = 0x13b8642;
 
+pub const VC_FILE_INSTALLER__P_CLASS: usize = 0x13ca818;
+
 pub const NO_STRINGS: usize = 0x13bd800;
 
 pub const G_FULL_SCREEN: usize = 0x137544a;
@@ -94,3 +108,22 @@ pub const G_RESOLUTION_WIDTH: usize = 0x1375468;
 pub const G_RESOLUTION_DEPTH: usize = 0x1375460;
 pub const G_PRESENT_IMMEDIATE: usize = 0x137545c;
 pub const G_RESOLUTION_HEIGHT: usize = 0x1375464;
+pub const G_FORCE_PRIMARY: usize = 0x13b8604;
+
+pub const G_RUN_INI_SCRIPTS: usize = 0x137548f;
+pub const G_IGNORE_TIMESTAMP_ON_INSTALL: usize = 0x13b860b;
+pub const G_ALLOW_DATA_GENERATION: usize = 0x1375459;
+pub const G_RUN_FROM_DVD: usize = 0x13b8615;
+pub const G_PREVENT_INSTALLATION: usize = 0x1375447;
+pub const G_LEFT_ALIGN_TEXT: usize = 0x13b861b;
+pub const G_NO_HANGUL_WORD_WRAP: usize = 0x13b861c;
+pub const G_DISABLE_CAPS_LOCK: usize = 0x13b864f;
+pub const G_USE_RETAIL_BANKS: usize = 0x13b8616;
+pub const G_USE_COMPILED_DEFS: usize = 0x13b8617;
+pub const G_ALLOW_BACKGROUND_PROCESSING: usize = 0x13b861e;
+pub const G_SKIP_CONFIG_DETECTION: usize = 0x13b861d;
+pub const G_ONLY_BUILD_STATIC_MAPS: usize = 0x13b8648;
+
+pub const G_CONFIG_OPTIONS__USE_ALTERNATE_RENDERING_TARGET_CLEAR: usize = 0x13750a4;
+pub const G_CONFIG_OPTIONS__ENABLE_TEXTURE_TRANSFORMS: usize = 0x13750aa;
+pub const G_CONFIG_OPTIONS__USE_FIXED_FUNCTION_TEXT: usize = 0x13750ab;
