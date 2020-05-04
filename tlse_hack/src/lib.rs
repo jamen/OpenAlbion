@@ -21,60 +21,22 @@ use winapi::um::wincon::*;
 // use winapi::um::winuser::*;
 use winapi::um::memoryapi::*;
 
+use tlse_sys::CMainGameComponent;
+
 #[no_mangle]
 unsafe extern "system" fn DllMain(dll_handle: HINSTANCE, fdv_reason: DWORD, lpv_reserved: LPVOID) -> BOOL {
     match fdv_reason {
         DLL_PROCESS_ATTACH => {
             AllocConsole();
 
-            // println!("maybe dev frontend {}", read(G_SHOW_DEV_FRONTEND, 1)[0]);
-            // write(G_SHOW_DEV_FRONTEND, &[ 1 ]);
-            // println!("maybe dev frontend {}", read(G_SHOW_DEV_FRONTEND, 1)[0]);
-
-            println!("G_FULL_SCREEN {}", read(G_FULL_SCREEN, 1)[0] == 1);
-            println!("G_ANTIALIASING_ON {}", read(G_ANTIALIASING_ON, 1)[0] == 1);
-            println!("G_ANTIALIASING_X9 {}", read(G_ANTIALIASING_X9, 1)[0] == 1);
-            println!("G_KICKOFF_SIZE {}", u32::from_le_bytes(read(G_KICKOFF_SIZE, 4).try_into().unwrap()));
-            println!("G_PUSH_BUFFER_SIZE {}",u32::from_le_bytes( read(G_PUSH_BUFFER_SIZE, 4).try_into().unwrap()));
-            println!("G_RESOLUTION_REFRESH_RATE {}", u32::from_le_bytes( read(G_RESOLUTION_REFRESH_RATE, 4).try_into().unwrap()));
-            println!("G_Z_DEPTH_BUFFER {}", u32::from_le_bytes(read(G_Z_DEPTH_BUFFER, 4).try_into().unwrap()));
-            println!("G_RESOLUTION_DEPTH {}", u32::from_le_bytes(read(G_RESOLUTION_DEPTH, 4).try_into().unwrap()));
-
-            println!("G_ALLOW_DATA_GENERATION {}", read(G_ALLOW_DATA_GENERATION, 1)[0] == 1);
-            // write(G_ALLOW_DATA_GENERATION, &[ 1 ]);
-            // println!("G_ALLOW_DATA_GENERATION {}", read(G_ALLOW_DATA_GENERATION, 1)[0]);
-
-            println!("G_USE_COMPILED_DEFS {}", read(G_USE_COMPILED_DEFS, 1)[0] == 1);
-            // write(G_USE_COMPILED_DEFS, &[ 1 ]);
-            // println!("G_USE_COMPILED_DEFS {}", read(G_USE_COMPILED_DEFS, 1)[0]);
-
-            println!("G_ALLOW_BACKGROUND_PROCESSING {}", read(G_ALLOW_BACKGROUND_PROCESSING, 1)[0] == 1);
-            // write(G_ALLOW_BACKGROUND_PROCESSING, &[ 1 ]);
-            // println!("G_ALLOW_BACKGROUND_PROCESSING {}", read(G_ALLOW_BACKGROUND_PROCESSING, 1)[0]);
-
-            println!("G_PRESENT_IMMEDIATE {}", read(G_PRESENT_IMMEDIATE, 1)[0] == 1);
-            // write(G_PRESENT_IMMEDIATE, &[ 1 ]);
-            // println!("G_PRESENT_IMMEDIATE {}", read(G_PRESENT_IMMEDIATE, 1)[0]);
-
-            println!("G_SAVE_INPUTS {}", read(G_SAVE_INPUTS, 1)[0] == 1);
-            // write(G_SAVE_INPUTS, &[ 1 ]);
-            // println!("G_SAVE_INPUTS {}", read(G_SAVE_INPUTS, 1)[0]);
-
-            // let test = std::ffi::CStr::from_ptr(G_INPUT_FILE_NAME as *const std::os::raw::c_char);
-            // let test = test.to_str().unwrap();
-            // println!("G_INPUT_FILE_NAME {}", test);
-
-            println!("G_RESOLUTION_WIDTH {}", u32::from_le_bytes(read(G_RESOLUTION_WIDTH, 4).try_into().unwrap()));
-            // write(G_RESOLUTION_WIDTH, &(800u32.to_le_bytes()));
-            // println!("G_RESOLUTION_WIDTH {}", u32::from_le_bytes(read(G_RESOLUTION_WIDTH, 4).try_into().unwrap()));
-
-            println!("G_RESOLUTION_HEIGHT {}", u32::from_le_bytes(read(G_RESOLUTION_HEIGHT, 4).try_into().unwrap()));
-            // write(G_RESOLUTION_HEIGHT, &(600u32.to_le_bytes()));
-            // println!("G_RESOLUTION_HEIGHT {}", u32::from_le_bytes(read(G_RESOLUTION_HEIGHT, 4).try_into().unwrap()));
-
-            println!("G_DELAY_EACH_FRAME_MS {:?}", u32::from_le_bytes(read(G_DELAY_EACH_FRAME_MS, 4).try_into().unwrap()));
-            // write(G_DELAY_EACH_FRAME_MS, &(10u32.to_le_bytes()));
-            // println!("G_DELAY_EACH_FRAME_MS {:?}", u32::from_le_bytes(read(G_DELAY_EACH_FRAME_MS, 4).try_into().unwrap()));
+            let main_game_component = P_MAIN_GAME_COMPONENT as *mut CMainGameComponent;
+            println!("main_game_component c_game_component quit {}", (*main_game_component).c_game_component.quit);
+            println!("main_game_component c_game_component running {}", (*main_game_component).c_game_component.running);
+            println!("main_game_component force_update_tick {}", (*main_game_component).force_update_tick);
+            println!("main_game_component force_update_tick_speed_multiplier {}", (*main_game_component).force_update_tick_speed_multiplier);
+            println!("main_game_component force_update_tick_speed_desired_framerate {}", (*main_game_component).force_update_tick_speed_desired_framerate);
+            println!("main_game_component force_update_no_failed_updates {}", (*main_game_component).force_update_no_failed_updates);
+            println!("main_game_component first_world_frame_update {}", (*main_game_component).first_world_frame_update);
 
             write(G_FULL_SCREEN, &[ 0 ]);
 
@@ -129,6 +91,16 @@ unsafe extern "system" fn init(lpThreadParameter: LPVOID) -> DWORD {
         match line.as_ref() {
             // ...
             "" => println!("No command given."),
+            "main_game_component_basic_test" => {
+                let main_game_component = P_MAIN_GAME_COMPONENT as *mut CMainGameComponent;
+                println!("main_game_component c_game_component quit {}", (*main_game_component).c_game_component.quit);
+                println!("main_game_component c_game_component running {}", (*main_game_component).c_game_component.running);
+                println!("main_game_component force_update_tick {}", (*main_game_component).force_update_tick);
+                println!("main_game_component force_update_tick_speed_multiplier {}", (*main_game_component).force_update_tick_speed_multiplier);
+                println!("main_game_component force_update_tick_speed_desired_framerate {}", (*main_game_component).force_update_tick_speed_desired_framerate);
+                println!("main_game_component force_update_no_failed_updates {}", (*main_game_component).force_update_no_failed_updates);
+                println!("main_game_component first_world_frame_update {}", (*main_game_component).first_world_frame_update);
+            },
             "dbg_profile" => {
                 if read(G_ALLOW_DEBUG_PROFILE, 1)[0] == 0 {
                     write(G_ALLOW_DEBUG_PROFILE, &[ 1 ]);
