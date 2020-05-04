@@ -38,6 +38,7 @@ use crate::{
 
 #[repr(C)]
 pub struct CMainGameComponent {
+    pub vmt: usize,
     pub c_game_component: CGameComponent,
     pub p_sound_bank: *mut CASoundBank,
     pub p_text_bank: CCountedPointer<n_game_text::CDataBank>,
@@ -60,7 +61,9 @@ pub struct CMainGameComponent {
     pub game_start_time: c_double,
     pub last_frame_render_duration: c_double,
     pub last_interpolation_info: CInterpolationInfo,
-    pub event_package_set: CGameEventPackageSet,
+    // Cannot figure this out. Temporary fix.
+    // pub event_package_set: CGameEventPackageSet,
+    pub event_package_set: [u8; 14868],
     /// Could be absent in retail? The class is still present, so there's a good chance it is.
     pub client: CNetworkClient,
     pub no_render_frames_since_last_game_update: c_ulong,
