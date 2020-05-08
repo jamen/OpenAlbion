@@ -7,5 +7,5 @@ pub struct CRGBColour {
     pub g: c_uchar,
     pub r: c_uchar,
     pub a: c_uchar,
-    pub int_value: c_ulong,
+    // pub int_value: c_ulong,
 }

@@ -6,7 +6,6 @@ use std::os::raw::{c_double,c_float,c_long,c_ulong,c_void,c_uchar};
 use winapi::shared::ntdef::WCHAR;
 
 use crate::cxx;
-use crate::n_game_text;
 use crate::{
     CASoundBank,
     CCharString,
@@ -34,8 +33,8 @@ use crate::{
     CRoughFrameCounter,
     CWideString,
     CWorld,
+    NGameText,
 };
-
 
 #[derive(Debug)]
 #[repr(C)]
@@ -43,7 +42,7 @@ pub struct CMainGameComponent {
     pub vmt: *mut (),
     pub c_game_component: CGameComponent,
     pub p_sound_bank: *mut CASoundBank,
-    pub p_text_bank: CCountedPointer<n_game_text::CDataBank>,
+    pub p_text_bank: CCountedPointer<NGameText::CDataBank>,
     pub p_player_manager: cxx::BoostScopedPtr<CPlayerManager>,
     pub p_player_interface: cxx::BoostScopedPtr<CGamePlayerInterface>,
     pub p_world: cxx::BoostScopedPtr<CWorld>,
@@ -191,7 +190,7 @@ impl CMainGameComponent {
     fn get_current_server_frame(&self) -> c_long { unimplemented!() }
     fn get_engine_graphics(&self) -> *mut CGraphicDataBank { unimplemented!() }
     fn peek_engine_graphics(&self) -> *const CGraphicDataBank { unimplemented!() }
-    fn get_text_bank(&self) -> *const n_game_text::CDataBank { unimplemented!() }
+    fn get_text_bank(&self) -> *const NGameText::CDataBank { unimplemented!() }
     fn is_text_bank_initialised(&self) -> bool { unimplemented!() }
     fn get_time_since_last_render_frame(&self) -> c_float { unimplemented!() }
     fn get_time_passed_since_last_update(&self) -> c_float { unimplemented!() }

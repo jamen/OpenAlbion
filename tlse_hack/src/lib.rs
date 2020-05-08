@@ -81,22 +81,123 @@ unsafe extern "system" fn init(lpThreadParameter: LPVOID) -> DWORD {
 
         match line.as_ref() {
             "" => println!("No command given."),
-            "test_free_cam" => {
+            "test_player" => {
                 let game = &mut **(P_MAIN_GAME_COMPONENT as *mut *mut CMainGameComponent);
-                let player_manager = &mut *game.p_player_manager;
 
+                let player_manager = &mut *game.p_player_manager;
                 let players = player_manager.players.as_slice();
+                let p_player = players[player_manager.main_player as usize];
                 let mut player = &mut *players[player_manager.main_player as usize];
 
-                player.drawing_free_cam_debug = true;
+                let player_data = std::slice::from_raw_parts(p_player as *mut u8, 8000);
+                hex_table::HexTable::new(16, p_player as usize, false, true, false).format(player_data, &mut stdout).unwrap();
 
-                println!("{:#?}", player);
+                // player.show_world_thing = !player.using_free_cam;
+                // player.using_free_cam = !player.using_free_cam;
+                // player.controlling_free_camera = !player.controlling_free_camera;
+                // player.kill_everything_mode = !player.kill_everything_mode;
+
+                // player.drawing_free_cam_debug = true;
+
+                // println!("player interface {:#?} {:#?}", game.p_player_interface.0, player.player_interface);
+                // println!("player manager {:#?} {:#?}", game.p_player_manager.0, player.player_manager);
+                // println!("world {:#?} {:#?}", game.p_world.0, player.world);
+
+                // println!("player {:#?}", player);
             },
             "test_world" => {
                 let game = &mut **(P_MAIN_GAME_COMPONENT as *mut *mut CMainGameComponent);
-                let world = &*game.p_world;
-                println!("{:#?}", world);
-            }
+
+                let world_data = std::slice::from_raw_parts(game.p_world.0 as *mut u8, 8000);
+                hex_table::HexTable::default().format(world_data, &mut stdout).unwrap();
+
+                let mut world = &mut *game.p_world;
+
+                // let mut file = std::fs::OpenOptions::new().write(true).create(true).open("C:\\Users\\jamen\\Documents\\Fable Resources\\CWorld.txt").unwrap();
+                // write!(file, "{:#?}", world).unwrap();
+
+                let player_manager = &mut *game.p_player_manager;
+                let players = player_manager.players.as_slice();
+                let p_player = players[player_manager.main_player as usize];
+                let player = &mut *players[player_manager.main_player as usize];
+
+                world.show_debug_text = !world.show_debug_text;
+                world.slow_motion = !world.slow_motion;
+                world.show_profile_text = !world.show_profile_text;
+                world.mini_map_enabled = !world.mini_map_enabled;
+                world.hero_sleeping_enabled = !world.hero_sleeping_enabled;
+
+                // println!("game.p_world.0 {:#?}", game.p_world.0);
+                // println!("player.world {:#?}", player.world);
+                // println!("");
+                // println!("game.p_player_manager.0 {:#?}", game.p_player_manager.0);
+                // println!("world.player_manager {:#?}", world.player_manager);
+                // println!("");
+                // println!("main_game_component {:#?}", *(P_MAIN_GAME_COMPONENT as *mut *mut ()));
+                // println!("world.component {:#?}", world.component);
+
+                // println!("{:#?}", world);
+                // println!("c_base_class_non_copyable {:#?}", world.c_base_class_non_copyable);
+                // println!("ci_draw_world {:#?}", world.ci_draw_world);
+                // println!("component {:#?}", world.component);
+                // println!("player_manager {:#?}", world.player_manager);
+                // println!("definition_manager {:#?}", world.definition_manager);
+                // println!("p_world_map {:#?}", world.p_world_map);
+                // println!("p_environment {:#?}", world.p_environment);
+                // println!("p_game_time_manager {:#?}", world.p_game_time_manager);
+                // println!("p_thing_search_tools {:#?}", world.p_thing_search_tools);
+                // println!("p_atmos_processor {:#?}", world.p_atmos_processor);
+                // println!("p_game_camera {:#?}", world.p_game_camera);
+                // println!("p_game_camera_manager {:#?}", world.p_game_camera_manager);
+                // println!("p_current_game_camera {:#?}", world.p_current_game_camera);
+                // println!("p_game_script_interface {:#?}", world.p_game_script_interface);
+                // println!("p_main_mesh_bank {:#?}", world.p_main_mesh_bank);
+                // println!("p_animation_manager {:#?}", world.p_animation_manager);
+                // println!("p_navigation_manager {:#?}", world.p_navigation_manager);
+                // println!("p_thing_combat_manager {:#?}", world.p_thing_combat_manager);
+                // println!("p_thing_manager {:#?}", world.p_thing_manager);
+                // println!("p_faction_manager {:#?}", world.p_faction_manager);
+                // println!("p_script_info_manager {:#?}", world.p_script_info_manager);
+                // println!("p_message_event_manager {:#?}", world.p_message_event_manager);
+                // println!("p_bullet_time_manager {:#?}", world.p_bullet_time_manager);
+                // println!("p_music_manager {:#?}", world.p_music_manager);
+                // println!("p_opinion_reaction_manager {:#?}", world.p_opinion_reaction_manager);
+                // println!("p_script_conversation_manager {:#?}", world.p_script_conversation_manager);
+                // println!("just_loaded {:#?}", world.just_loaded);
+                // println!("current_world_name {:#?}", world.current_world_name);
+                // println!("console_pause_at_frame_number {:#?}", world.console_pause_at_frame_number);
+                // println!("frame_started_3d_rendering {:#?}", world.frame_started_3d_rendering);
+                // println!("last_update_time_length {:#?}", world.last_update_time_length);
+                // println!("last_update_time {:#?}", world.last_update_time);
+                // println!("countdown_timer {:#?}", world.countdown_timer);
+                // println!("paused {:#?}", world.paused);
+                // println!("slow_motion {:#?}", world.slow_motion);
+                // println!("show_debug_text {:#?}", world.show_debug_text);
+                // println!("show_fps_text {:#?}", world.show_fps_text);
+                // println!("show_profile_text {:#?}", world.show_profile_text);
+                // println!("creature_generation_disabled_groups {:#?}", world.creature_generation_disabled_groups);
+                // println!("creature_generation_enabled {:#?}", world.creature_generation_enabled);
+                // println!("teleporting_enabled {:#?}", world.teleporting_enabled);
+                // println!("experience_spending_enabled {:#?}", world.experience_spending_enabled);
+                // println!("saving_enabled {:#?}", world.saving_enabled);
+                // println!("dont_populate_next_loaded_region {:#?}", world.dont_populate_next_loaded_region);
+                // println!("hero_sleeping_enabled {:#?}", world.hero_sleeping_enabled);
+                // println!("map_table_show_quest_cards_on_used {:#?}", world.map_table_show_quest_cards_on_used);
+                // println!("screen_to_fade_in_on_next_region_change {:#?}", world.screen_to_fade_in_on_next_region_change);
+                // println!("done_extra_frame_update_before_region_load_screen_fade_in {:#?}", world.done_extra_frame_update_before_region_load_screen_fade_in);
+                // println!("mini_map_enabled {:#?}", world.mini_map_enabled);
+                // println!("mini_map_active_before_disabled {:#?}", world.mini_map_active_before_disabled);
+            },
+            "test_display" => {
+                let game = &**(P_MAIN_GAME_COMPONENT as *mut *mut CMainGameComponent);
+                let mut display = &mut *game.p_display_engine.0;
+
+                // display_engine.draw_game = false;
+                display.draw_memory_use = true;
+                display.draw_debug_page = 2;
+
+                println!("{:#?}", display);
+            },
             "test" => {
                 let game = &**(P_MAIN_GAME_COMPONENT as *mut *mut CMainGameComponent);
                 println!("main_game_component c_game_component quit {}", game.c_game_component.quit);

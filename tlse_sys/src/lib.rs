@@ -1,3 +1,13 @@
+#![allow(non_snake_case)]
+
+#[path = "n_game_text/mod.rs"]
+pub mod NGameText;
+#[path = "n_display_view/mod.rs"]
+pub mod NDisplayView;
+
+pub mod cxx;
+
+mod c_2d_box_f;
 mod c_3d_animation_manager;
 mod c_3d_vector;
 mod c_ai_game_camera_base;
@@ -10,19 +20,26 @@ mod c_bank_file;
 mod c_bank_state_block;
 mod c_base_class_non_copyable;
 mod c_base_class;
+mod c_basic_string;
 mod c_bullet_time_manager;
 mod c_camera;
+mod c_char_string;
 mod c_combat_manager;
+mod c_counted_pointer;
 mod c_crc_symbol_map;
 mod c_def_class_base;
+mod c_def_pointer;
+mod c_def_string;
 mod c_definition_manager;
 mod c_device_reset_callback;
 mod c_disk_file_win32;
 mod c_display_engine;
+mod c_display_view_manager;
 mod c_engine_primitive_handle;
 mod c_environment;
 mod c_event_package_file_header;
 mod c_faction_manager;
+mod c_fade_in_fade_out_base;
 mod c_font_bank;
 mod c_frame_rate_smoother;
 mod c_game_component;
@@ -42,8 +59,10 @@ mod c_hero_log_book;
 mod c_init_base_class;
 mod c_input_process_main;
 mod c_input_process_manager;
+mod c_intelligent_pointer;
 mod c_interpolation_info;
 mod c_key_pair_compare_less;
+mod c_letter_box_mode_info;
 mod c_linked_list;
 mod c_lua;
 mod c_main_game_component_init;
@@ -73,19 +92,17 @@ mod c_thing_creature_base;
 mod c_thing_manager;
 mod c_thing_player_creature;
 mod c_thing_search_tools;
+mod c_thing;
 mod c_vector_map;
+mod c_wide_string;
 mod c_world_map;
 mod c_world;
 mod ca_game_camera_base;
 mod ca_input_process;
 mod ca_sound_bank;
-mod pointers;
-mod strings;
-mod c_thing;
+mod ci_engine;
 
-pub mod n_game_text;
-pub mod cxx;
-
+pub use c_2d_box_f::*;
 pub use c_3d_animation_manager::*;
 pub use c_3d_vector::*;
 pub use c_ai_game_camera_base::*;
@@ -98,19 +115,26 @@ pub use c_bank_file::*;
 pub use c_bank_state_block::*;
 pub use c_base_class_non_copyable::*;
 pub use c_base_class::*;
+pub use c_basic_string::*;
 pub use c_bullet_time_manager::*;
 pub use c_camera::*;
+pub use c_char_string::*;
 pub use c_combat_manager::*;
+pub use c_counted_pointer::*;
 pub use c_crc_symbol_map::*;
 pub use c_def_class_base::*;
+pub use c_def_pointer::*;
+pub use c_def_string::*;
 pub use c_definition_manager::*;
 pub use c_device_reset_callback::*;
 pub use c_disk_file_win32::*;
 pub use c_display_engine::*;
+pub use c_display_view_manager::*;
 pub use c_engine_primitive_handle::*;
 pub use c_environment::*;
 pub use c_event_package_file_header::*;
 pub use c_faction_manager::*;
+pub use c_fade_in_fade_out_base::*;
 pub use c_font_bank::*;
 pub use c_frame_rate_smoother::*;
 pub use c_game_component::*;
@@ -130,8 +154,10 @@ pub use c_hero_log_book::*;
 pub use c_init_base_class::*;
 pub use c_input_process_main::*;
 pub use c_input_process_manager::*;
+pub use c_intelligent_pointer::*;
 pub use c_interpolation_info::*;
 pub use c_key_pair_compare_less::*;
+pub use c_letter_box_mode_info::*;
 pub use c_linked_list::*;
 pub use c_lua::*;
 pub use c_main_game_component_init::*;
@@ -161,16 +187,17 @@ pub use c_thing_creature_base::*;
 pub use c_thing_manager::*;
 pub use c_thing_player_creature::*;
 pub use c_thing_search_tools::*;
+pub use c_thing::*;
 pub use c_vector_map::*;
+pub use c_wide_string::*;
 pub use c_world_map::*;
 pub use c_world::*;
 pub use ca_game_camera_base::*;
 pub use ca_input_process::*;
 pub use ca_sound_bank::*;
-pub use pointers::*;
-pub use strings::*;
-pub use c_thing::*;
+pub use ci_engine::*;
 
+/// An unknown type with zero bytes.
 #[derive(Debug)]
 #[repr(C)]
 pub struct UnknownEmptyType;

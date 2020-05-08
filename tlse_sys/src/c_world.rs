@@ -103,13 +103,15 @@ pub struct CWorld {
     pub hero_information_screen_mode_after_tutorial: bool,
     pub frame_cached_lod_center: c_long,
     pub cached_lod_center: C3DVector,
-    pub save_game_load_status: self::ESaveGameLoadStatus,
+    // pub save_game_load_status: self::ESaveGameLoadStatus,
+    pub save_game_load_status: u32,
     pub save_game_path_name: CWideString,
     pub auto_save_loacked: bool,
     pub serialising_about_to_load_hero_state: bool,
     pub serialising_hero_state: bool,
     pub serialising_non_persistent_quest_items: bool,
-    pub region_load_status: self::ERegionLoadStatus,
+    // pub region_load_status: self::ERegionLoadStatus,
+    pub region_load_status: u32,
     pub region_load_start_pos: C3DVector,
     pub region_load_start_angle_xy: c_float,
     pub region_load_followers: cxx::StdVector<CIntelligentPointer<CThing>>,
@@ -122,8 +124,10 @@ pub struct CWorld {
     pub region_load_screen_fully_faded: bool,
     pub region_load_screen_was_faded_out: bool,
     pub waiting_for_reset_to_front_end_confirmation: bool,
-    pub most_recent_save_type: self::ESaveType,
-    pub most_recent_save_type_before_manual_save: self::ESaveType,
+    // pub most_recent_save_type: self::ESaveType,
+    pub most_recent_save_type: u32,
+    // pub most_recent_save_type_before_manual_save: self::ESaveType,
+    pub most_recent_save_type_before_manual_save: u32,
     pub most_recent_manual_save_name: CWideString,
     pub auto_save_check_point_exists: bool,
     pub save_game_marker_pos: C3DVector,
@@ -133,7 +137,8 @@ pub struct CWorld {
     pub weather_masking_primitives_sent: bool,
     pub weather_masking_primitive_handles: cxx::StdVector<CEnginePrimitiveHandle>,
     pub atmos_banks_waiting_to_copy: cxx::StdList<CAtmosCopyInfo>,
-    pub player_spawn_status: self::EPlayerSpawnStatus,
+    // pub player_spawn_status: self::EPlayerSpawnStatus,
+    pub player_spawn_status: u32,
     pub villager_reaction_debug: bool,
     pub start_time: c_double,
     pub time_played: c_double,
@@ -143,6 +148,8 @@ pub struct CWorld {
 #[derive(Debug)]
 #[repr(C)]
 pub struct CIDrawWorld {
+    // Does it really have a vtable?
+    pub vmt: *mut ()
 }
 
 #[allow(non_camel_case_types)]
