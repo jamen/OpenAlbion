@@ -3,6 +3,7 @@
 // use crate::{CBankStateBlock,CCharString,CCountedPointer,CSmallVector};
 
 /// TODO: I've left this empty for now because its behind a pointer.
+#[derive(Debug)]
 #[repr(C)]
 pub struct CBankFileEntryUpdateData {
     // pub state_block_crc: c_ulong,

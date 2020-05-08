@@ -1,5 +1,16 @@
 use std::os::raw::{c_long,c_void};
 
+#[derive(Debug)]
+#[repr(C)]
+pub struct CCountedPointer<T> {
+    pub data: *mut T,
+    pub info: *mut CCPPointerInfo,
+}
+
+impl<T> CCountedPointer<T> {
+}
+
+#[derive(Debug)]
 #[repr(C)]
 pub struct CCPPointerInfo {
     pub ref_count: c_long,

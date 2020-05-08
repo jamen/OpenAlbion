@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::os::raw::{c_char,c_ulong};
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct CBasicString<T> {
     pub p_data: *mut c_char,

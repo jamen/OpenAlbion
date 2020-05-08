@@ -2,9 +2,10 @@ use crate::cxx::StdPair;
 
 use crate::CArray;
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct CVectorMap<K, V, C> {
-    pub inherited_c_array: CArray<StdPair<K, V>>,
+    pub c_array: CArray<StdPair<K, V>>,
     pub compare: C,
     pub dirty: bool,
 }

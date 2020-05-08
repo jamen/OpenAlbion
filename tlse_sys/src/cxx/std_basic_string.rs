@@ -7,6 +7,7 @@ use winapi::shared::basetsd::UINT32;
 
 /// This only works when the value type is WCHAR because the buffer and alias sizes are 16 / 2.
 /// If Rust becomes smarter then `[A; 16 / mem::size_of::<A>()]` could be possible.
+#[derive(Debug)]
 #[repr(C)]
 pub struct StdBasicString<
     A: Sized,

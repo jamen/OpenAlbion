@@ -4,8 +4,15 @@ use winapi::ctypes::wchar_t;
 
 use crate::cxx;
 
+#[derive(Debug)]
+#[repr(C)]
+pub struct CWideString {
+    pub p_string_data: *mut CWideStringData,
+}
+
+#[derive(Debug)]
 #[repr(C)]
 pub struct CWideStringData {
     pub data: cxx::StdBasicString<wchar_t, cxx::StdCharTraits<wchar_t>, cxx::StdAllocator<wchar_t>>,
-    pub no_refs: c_long,
+    pub refs_count: c_long,
 }

@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct CKeyPairCompareLess<A, B> {
     a: PhantomData<A>,

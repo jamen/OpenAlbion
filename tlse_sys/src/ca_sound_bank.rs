@@ -1,8 +1,9 @@
 use crate::{CBaseClassNonCopyable,CCountedPointer,CCRCSymbolMap};
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct CASoundBank {
-    pub inherited_c_base_class_non_copyable: CBaseClassNonCopyable,
+    pub c_base_class_non_copyable: CBaseClassNonCopyable,
     pub p_symbol_map: CCountedPointer<CCRCSymbolMap>,
 }
 

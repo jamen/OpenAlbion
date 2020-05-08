@@ -80,14 +80,22 @@ unsafe extern "system" fn init(lpThreadParameter: LPVOID) -> DWORD {
         let line = lines.next().unwrap().unwrap();
 
         match line.as_ref() {
-            // ...
             "" => println!("No command given."),
-            "test_evts" => {
-                let evts_b = *(P_MAIN_GAME_COMPONENT as *mut usize) + 164;
-                let evts_e = *(P_MAIN_GAME_COMPONENT as *mut usize) + 15032;
-                println!("evts_b {:?}", read_segm(evts_b, 256));
-                println!("");
-                println!("evts_e {:?}", read_segm(evts_e, 256));
+            "test_free_cam" => {
+                let game = &mut **(P_MAIN_GAME_COMPONENT as *mut *mut CMainGameComponent);
+                let player_manager = &mut *game.p_player_manager;
+
+                let players = player_manager.players.as_slice();
+                let mut player = &mut *players[player_manager.main_player as usize];
+
+                player.drawing_free_cam_debug = true;
+
+                println!("{:#?}", player);
+            },
+            "test_world" => {
+                let game = &mut **(P_MAIN_GAME_COMPONENT as *mut *mut CMainGameComponent);
+                let world = &*game.p_world;
+                println!("{:#?}", world);
             }
             "test" => {
                 let game = &**(P_MAIN_GAME_COMPONENT as *mut *mut CMainGameComponent);
@@ -104,7 +112,7 @@ unsafe extern "system" fn init(lpThreadParameter: LPVOID) -> DWORD {
                 println!("main_game_component current_frame_start_game_time {}", game.current_frame_start_game_time);
                 println!("main_game_component game_start_time {}", game.game_start_time);
                 println!("main_game_component last_frame_render_duration {}", game.last_frame_render_duration);
-                println!("main_game_component no_render_frames_since_last_game_update {}", game.no_render_frames_since_last_game_update);
+                println!("main_game_component no_render_frames_since_last_game_update {}", game.render_frames_since_last_game_update_count);
                 println!("main_game_component world_seed {}", game.world_seed);
                 println!("main_game_component local_seed {}", game.local_seed);
                 println!("main_game_component loading_event_packages {}", game.loading_event_packages);
@@ -192,3 +200,4 @@ unsafe fn write(address: usize, buffer: &[u8]) {
 //     write(address, buffer);
 //     move || write(address, &restore)
 // }
+

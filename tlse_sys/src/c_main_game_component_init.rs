@@ -1,5 +1,6 @@
 use crate::{CWideString,CCharString};
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct CMainGameComponentInit {
     pub initial_world_name: CWideString,

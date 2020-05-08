@@ -36,9 +36,11 @@ use crate::{
     CWorld,
 };
 
+
+#[derive(Debug)]
 #[repr(C)]
 pub struct CMainGameComponent {
-    pub vmt: usize,
+    pub vmt: *mut (),
     pub c_game_component: CGameComponent,
     pub p_sound_bank: *mut CASoundBank,
     pub p_text_bank: CCountedPointer<n_game_text::CDataBank>,
@@ -62,11 +64,10 @@ pub struct CMainGameComponent {
     pub last_frame_render_duration: c_double,
     pub last_interpolation_info: CInterpolationInfo,
     // Cannot figure this out. Temporary fix.
-    // pub event_package_set: CGameEventPackageSet,
-    pub event_package_set: [u8; 14868],
+    pub event_package_set: CGameEventPackageSet,
     /// Could be absent in retail? The class is still present, so there's a good chance it is.
     pub client: CNetworkClient,
-    pub no_render_frames_since_last_game_update: c_ulong,
+    pub render_frames_since_last_game_update_count: c_ulong,
     pub world_seed: c_ulong,
     pub local_seed: c_ulong,
     pub p_debug_font: CCountedPointer<CFontBank>,
@@ -87,10 +88,12 @@ pub struct CMainGameComponent {
     pub initialised: bool,
     pub allow_render: bool,
     pub rendered: bool,
-    pub debug_no_frames_unable_to_render: c_long,
+    pub debug_frames_unable_to_render_count: c_long,
 }
 
 impl CMainGameComponent {
+    pub const P_MAIN_GAME_COMPONENT: usize = 0x13b86a0;
+
     fn update(&self) -> c_void { unimplemented!() }
     fn get_inputs(&self) -> c_void { unimplemented!() }
     fn render(&self) -> c_void { unimplemented!() }
@@ -200,9 +203,7 @@ impl CMainGameComponent {
     fn peek_last_interpolation_info(&self) -> *const CInterpolationInfo { unimplemented!() }
     /// CMainGameComponent* operator=(const CMainGameComponent*)
     fn assign(&self, x: *const CMainGameComponent) { unimplemented!() }
-}
 
-impl CMainGameComponent {
     fn app_reinit_func(x: *mut c_void) -> c_void { unimplemented!() }
     fn console_set_resolution(mgc: *mut CMainGameComponent, x: cxx::StdVector<CGenericVar>) -> c_void { unimplemented!() }
     fn console_force_update_tick_speed(mgc: *mut CMainGameComponent, x: cxx::StdVector<CGenericVar>) -> c_void  { unimplemented!() }

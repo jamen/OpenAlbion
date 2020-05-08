@@ -1,8 +1,9 @@
 use crate::CBaseClass;
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct CInitBaseClass {
-    pub inherited_c_base_class: CBaseClass,
+    pub c_base_class: CBaseClass,
     pub valid: bool,
 }
 
