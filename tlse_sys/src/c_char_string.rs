@@ -17,7 +17,7 @@ pub struct CCharStringData {
 }
 
 impl CCharString {
-    pub fn from_str(s: &mut str) -> CCharString {
+    pub fn new(mut s: String) -> CCharString {
         CCharString {
             data: &mut CCharStringData {
                 data: CBasicString {

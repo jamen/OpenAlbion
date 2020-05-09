@@ -1,3 +1,4 @@
+#![feature(abi_thiscall)]
 #![allow(non_snake_case)]
 
 #[path = "n_game_text/mod.rs"]

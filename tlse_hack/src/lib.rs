@@ -177,9 +177,9 @@ unsafe extern "system" fn init(lpThreadParameter: LPVOID) -> DWORD {
                 println!("{:#?}", display);
             },
             "test_script" => {
-                let game = &**(P_MAIN_GAME_COMPONENT as *mut *mut CMainGameComponent);
-                let world = &*game.p_world;
-                let mut script_interface = &mut *world.p_game_script_interface;
+                let game = &mut **(P_MAIN_GAME_COMPONENT as *mut *mut CMainGameComponent);
+                let world = &mut *game.p_world;
+                let script_interface = &mut *world.p_game_script_interface;
 
                 // let script_data = std::slice::from_raw_parts(script_interface.vmt as *mut u32, 8000);
                 // println!("{:x?}", script_data);
@@ -193,7 +193,14 @@ unsafe extern "system" fn init(lpThreadParameter: LPVOID) -> DWORD {
 
                 // (script_fns.deactivate_boast_ui)(world.p_game_script_interface.0);
 
-                script_interface.give_hero_weapon();
+                // let w = tlse_sys::CCharString::new("SWORD_OF_AEONS".to_string());
+
+                // script_interface.set_weapon_as_heros_active_weapon(&w as *const tlse_sys::CCharString);
+                // script_interface.deactivate_boast_ui();
+                // script_interface.start_sneaking();
+                // script_interface.set_hero_weapons_as_usable(true);
+                // script_interface.give_hero_gold(1000);
+                script_interface.set_hud_enabled(false);
             },
             "test" => {
                 let game = &**(P_MAIN_GAME_COMPONENT as *mut *mut CMainGameComponent);
