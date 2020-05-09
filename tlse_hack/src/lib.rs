@@ -44,28 +44,6 @@ unsafe extern "system" fn DllMain(dll_handle: HINSTANCE, fdv_reason: DWORD, lpv_
     1
 }
 
-// unsafe extern "system" fn init(lpThreadParameter: LPVOID) -> DWORD {
-//     AllocConsole();
-
-//     // println!("maybe dev frontend {}", read(G_SHOW_DEV_FRONTEND, 1)[0]);
-//     // write(G_SHOW_DEV_FRONTEND, &[ 1 ]);
-//     // println!("maybe dev frontend {}", read(G_SHOW_DEV_FRONTEND, 1)[0]);
-
-//     println!("fullscreen {}", read(G_FULL_SCREEN, 1)[0]);
-//     write(G_FULL_SCREEN, &[ 0 ]);
-//     println!("fullscreen {}", read(G_FULL_SCREEN, 1)[0]);
-
-//     println!("width {}", u32::from_le_bytes(read(G_RESOLUTION_WIDTH, 4).try_into().unwrap()));
-//     println!("height {}", u32::from_le_bytes(read(G_RESOLUTION_HEIGHT, 4).try_into().unwrap()));
-//     println!("refresh rate {}", u32::from_le_bytes(read(G_RESOLUTION_REFRESH_RATE, 4).try_into().unwrap()));
-
-//     println!("flush instruction cache {}", FlushInstructionCache(GetCurrentProcess(), null_mut(), 0));
-
-//     run_prompt();
-
-//     0
-// }
-
 unsafe extern "system" fn init(lpThreadParameter: LPVOID) -> DWORD {
     let mut stdout = std::io::stdout();
 
@@ -197,6 +175,25 @@ unsafe extern "system" fn init(lpThreadParameter: LPVOID) -> DWORD {
                 display.draw_debug_page = 2;
 
                 println!("{:#?}", display);
+            },
+            "test_script" => {
+                let game = &**(P_MAIN_GAME_COMPONENT as *mut *mut CMainGameComponent);
+                let world = &*game.p_world;
+                let mut script_interface = &mut *world.p_game_script_interface;
+
+                // let script_data = std::slice::from_raw_parts(script_interface.vmt as *mut u32, 8000);
+                // println!("{:x?}", script_data);
+                // hex_table::HexTable::default().format(script_data, &mut stdout).unwrap();
+
+                // let script_fns = &*script_interface.vmt;
+
+                // println!("script_fns {:#?}", script_fns);
+
+                // println!("is xbox {}", (script_fns.is_xbox)(world.p_game_script_interface.0));
+
+                // (script_fns.deactivate_boast_ui)(world.p_game_script_interface.0);
+
+                script_interface.give_hero_weapon();
             },
             "test" => {
                 let game = &**(P_MAIN_GAME_COMPONENT as *mut *mut CMainGameComponent);

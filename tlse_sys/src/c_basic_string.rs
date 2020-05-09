@@ -10,5 +10,5 @@ pub struct CBasicString<T> {
     pub data_length: u32,
     /// This type was unnamed but 4 bytes long.
     pub use_fast_extend: u32,
-    internal: PhantomData<T>,
+    pub elem_type: PhantomData<T>,
 }

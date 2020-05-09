@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::os::raw::{c_char,c_long};
 
 use crate::CBasicString;
@@ -13,6 +14,23 @@ pub struct CCharString {
 pub struct CCharStringData {
     pub data: CBasicString<c_char>,
     pub refs_count: c_long,
+}
+
+impl CCharString {
+    pub fn from_str(s: &mut str) -> CCharString {
+        CCharString {
+            data: &mut CCharStringData {
+                data: CBasicString {
+                    p_data: s.as_mut_ptr() as *mut c_char,
+                    string_length: s.len() as u32,
+                    data_length: s.as_bytes().len() as u32,
+                    use_fast_extend: 0,
+                    elem_type: PhantomData,
+                },
+                refs_count: 0,
+            } as *mut CCharStringData
+        }
+    }
 }
 
 // impl CCharString {

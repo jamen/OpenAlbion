@@ -4,6 +4,8 @@
 pub mod NGameText;
 #[path = "n_display_view/mod.rs"]
 pub mod NDisplayView;
+#[path = "n_entity_events/mod.rs"]
+pub mod NEntityEvents;
 
 pub mod cxx;
 
@@ -20,6 +22,8 @@ mod c_bank_file;
 mod c_bank_state_block;
 mod c_base_class_non_copyable;
 mod c_base_class;
+mod c_base_object_pointer;
+mod c_base_object;
 mod c_basic_string;
 mod c_bullet_time_manager;
 mod c_camera;
@@ -49,6 +53,7 @@ mod c_game_event_package_set;
 mod c_game_event_package;
 mod c_game_event;
 mod c_game_player_interface;
+mod c_game_script_interface_base;
 mod c_game_script_interface;
 mod c_game_time_manager;
 mod c_game;
@@ -86,7 +91,10 @@ mod c_rgb_colour;
 mod c_right_handed_set;
 mod c_rough_frame_counter;
 mod c_script_conversation_manager;
+mod c_script_game_resource_object_base;
 mod c_script_info_manager;
+mod c_script_thing;
+mod c_script_game_resource_object_scripted_thing_base;
 mod c_test_quest;
 mod c_thing_creature_base;
 mod c_thing_manager;
@@ -101,6 +109,15 @@ mod ca_game_camera_base;
 mod ca_input_process;
 mod ca_sound_bank;
 mod ci_engine;
+mod c_base_intelligent_pointer;
+mod c_2d_coord_i;
+mod c_2d_vector;
+mod c_counter;
+mod c_hero_log_book_entry;
+mod c_rgb_float_colour;
+mod c_screen_filter_s_thing_by_pass;
+mod c_script_game_resource_object_movie_base;
+mod c_timer;
 
 pub use c_2d_box_f::*;
 pub use c_3d_animation_manager::*;
@@ -115,6 +132,8 @@ pub use c_bank_file::*;
 pub use c_bank_state_block::*;
 pub use c_base_class_non_copyable::*;
 pub use c_base_class::*;
+pub use c_base_object_pointer::*;
+pub use c_base_object::*;
 pub use c_basic_string::*;
 pub use c_bullet_time_manager::*;
 pub use c_camera::*;
@@ -144,6 +163,7 @@ pub use c_game_event_package_set::*;
 pub use c_game_event_package::*;
 pub use c_game_event::*;
 pub use c_game_player_interface::*;
+pub use c_game_script_interface_base::*;
 pub use c_game_script_interface::*;
 pub use c_game_time_manager::*;
 pub use c_game::*;
@@ -181,7 +201,10 @@ pub use c_rgb_colour::*;
 pub use c_right_handed_set::*;
 pub use c_rough_frame_counter::*;
 pub use c_script_conversation_manager::*;
+pub use c_script_game_resource_object_base::*;
 pub use c_script_info_manager::*;
+pub use c_script_thing::*;
+pub use c_script_game_resource_object_scripted_thing_base::*;
 pub use c_test_quest::*;
 pub use c_thing_creature_base::*;
 pub use c_thing_manager::*;
@@ -196,6 +219,15 @@ pub use ca_game_camera_base::*;
 pub use ca_input_process::*;
 pub use ca_sound_bank::*;
 pub use ci_engine::*;
+pub use c_base_intelligent_pointer::*;
+pub use c_2d_coord_i::*;
+pub use c_2d_vector::*;
+pub use c_counter::*;
+pub use c_hero_log_book_entry::*;
+pub use c_rgb_float_colour::*;
+pub use c_screen_filter_s_thing_by_pass::*;
+pub use c_script_game_resource_object_movie_base::*;
+pub use c_timer::*;
 
 /// An unknown type with zero bytes.
 #[derive(Debug)]
