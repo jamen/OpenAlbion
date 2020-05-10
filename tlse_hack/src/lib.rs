@@ -31,8 +31,6 @@ unsafe extern "system" fn DllMain(dll_handle: HINSTANCE, fdv_reason: DWORD, lpv_
 
             write(G_FULL_SCREEN, &[ 0 ]);
 
-            println!("flush instruction cache {}", FlushInstructionCache(GetCurrentProcess(), null_mut(), 0));
-
             CreateThread(null_mut(), 0, Some(init), null_mut(), 0, null_mut());
         },
         DLL_PROCESS_DETACH => {
@@ -192,15 +190,31 @@ unsafe extern "system" fn init(lpThreadParameter: LPVOID) -> DWORD {
                 // println!("is xbox {}", (script_fns.is_xbox)(world.p_game_script_interface.0));
 
                 // (script_fns.deactivate_boast_ui)(world.p_game_script_interface.0);
-
-                // let w = tlse_sys::CCharString::new("SWORD_OF_AEONS".to_string());
-
-                // script_interface.set_weapon_as_heros_active_weapon(&w as *const tlse_sys::CCharString);
                 // script_interface.deactivate_boast_ui();
                 // script_interface.start_sneaking();
                 // script_interface.set_hero_weapons_as_usable(true);
                 // script_interface.give_hero_gold(1000);
-                script_interface.set_hud_enabled(false);
+                // script_interface.set_hud_enabled(false);
+                // script_interface.hero_play_fireheart_minigame();
+                // script_interface.return_all_confiscated_items_to_hero();
+                // script_interface.set_hero_weapons_as_usable(true);
+                // script_interface.set_hero_will_as_usable(true);
+                // script_interface.set_weapon_out_crime_enabled(false);
+                // script_interface.remove_all_hero_weapons();
+
+                // let hero = &script_interface.get_hero();
+                // script_interface.entity_set_max_walking_speed(hero, 100.0);
+                // script_interface.set_debug_camera_type(1);
+
+                // script_interface.entity_set_max_walking_speed(&script_interface.hero_script_thing as *const tlse_sys::CScriptThing, 100.0);
+
+                // let t = script_interface.text_entry_exists(&tlse_sys::CCharString::new("SWORD_OF_AEONS".to_string()) as *const tlse_sys::CCharString);
+                // println!("text_entry_exists {}", t);
+
+                script_interface.create_creature_nearby(
+                    &tlse_sys::CCharString::new("CREATURE_BALVERINE".to_string()) as *const tlse_sys::CCharString,
+                    &tlse_sys::C3DVector { x: 0.0, y: 0.0, z: 0.0 } as *const tlse_sys::C3DVector,
+                );
             },
             "test" => {
                 let game = &**(P_MAIN_GAME_COMPONENT as *mut *mut CMainGameComponent);

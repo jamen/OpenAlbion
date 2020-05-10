@@ -37,11 +37,3 @@ pub struct CThingManager {
     // pub level_being_loaded: c_long,
     // pub current_selection_name: CCharString,
 }
-
-#[allow(non_camel_case_types)]
-#[derive(Debug)]
-#[repr(C)]
-pub enum EGlobalThingLoadingBehaviour {
-    LOAD_ON_STARTUP = 1,
-    LOAD_PER_LEVEL = 2,
-}

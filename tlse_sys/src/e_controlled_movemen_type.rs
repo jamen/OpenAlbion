@@ -1,0 +1,8 @@
+#[derive(Debug)]
+#[repr(C)]
+pub enum EControlledMovementType {
+    CONTROLLED_MOVEMENT_NULL = 0,
+    CONTROLLED_MOVEMENT_WALKING = 1,
+    CONTROLLED_MOVEMENT_FLYING = 2,
+    CONTROLLED_MOVEMENT_FIRST_PERSON = 3,
+}
