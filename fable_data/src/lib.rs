@@ -32,12 +32,12 @@
 //! [`Ini`]: struct.Ini.html
 
 // mod bba;
-// mod bbm;
+mod bbm;
 mod big;
 // mod bncfg;
 // mod bwd;
 // mod dat;
-// mod def;
+mod defbin;
 // mod entry;
 // mod error;
 // mod gtg;
@@ -45,23 +45,24 @@ mod big;
 mod lev;
 // mod lug;
 // mod lut;
+mod lzo;
 // mod met;
 // mod qst;
 // mod save;
 // mod script;
 // mod shared;
-// mod stb;
+mod stb;
 // mod tng;
 mod wad;
-// mod wld;
+mod wld;
 
 // pub use bba::*;
-// pub use bbm::*;
+pub use bbm::*;
 pub use big::*;
 // pub use bncfg::*;
 // pub use bwd::*;
 // pub use dat::*;
-// pub use def::*;
+pub use defbin::*;
 // pub use entry::*;
 // pub use error::*;
 // pub use gtg::*;
@@ -69,15 +70,16 @@ pub use big::*;
 pub use lev::*;
 // pub use lug::*;
 // pub use lut::*;
+pub use lzo::*;
 // pub use met::*;
 // pub use qst::*;
 // pub use save::*;
 // pub use script::*;
 // pub use shared::*;
-// pub use stb::*;
+pub use stb::*;
 // pub use tng::*;
 pub use wad::*;
-// pub use wld::*;
+pub use wld::*;
 
 use views::{Bytes,BadPos,Look};
 

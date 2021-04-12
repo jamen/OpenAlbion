@@ -2,10 +2,11 @@
 
 // use views::{Bytes,BadPos};
 
-use crate::BytesExt;
-
 use std::io::{Read,Seek,SeekFrom};
+
 use views::{Bytes,BadPos};
+
+use crate::BytesExt;
 
 #[derive(Debug)]
 pub struct Wad {

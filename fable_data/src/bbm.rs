@@ -1,16 +1,6 @@
 use std::io::{Read,Seek};
 
-use super::{
-    Error,
-    IResult,
-    count,
-    decode_null_terminated_string,
-    le_f32,
-    le_i32,
-    le_u16,
-    le_u32,
-    le_u8,
-};
+use views::{Bytes,BadPos};
 
 /// Mesh format.
 ///
@@ -182,11 +172,6 @@ use super::{
 ///
 #[derive(Debug,PartialEq)]
 pub struct Bbm {
-    pub header: BbmHeader,
-}
-
-#[derive(Debug,PartialEq)]
-pub struct BbmHeader {
     pub name: String,
     pub has_skeleton: u8,
     pub model_origin: Vec<f32>,
@@ -214,7 +199,6 @@ pub struct BbmHeader {
     // pub bone_index_compressed: u16,
     // pub bone_index: Vec<u8>,
     // pub compressed_size: u16,
-
 }
 
 #[derive(Debug,PartialEq)]
@@ -230,149 +214,242 @@ pub struct BbmHelperDummy {
 }
 
 impl Bbm {
-    pub fn decode<Source>(source: &mut Source) -> Result<Bbm, Error>
-        where Source: Read + Seek
-    {
+    pub fn decode<T: Read + Seek>(source: &mut T) -> Result<Bbm, BadPos> {
         let mut data = Vec::new();
-        source.read_to_end(&mut data)?;
-        // let (_, bbm) = all_consuming(Bbm::decode_bbm)(&data)?;
-        let (_, bbm) = Bbm::decode_bbm(&data)?;
-        Ok(bbm)
+
+        source.read_to_end(&mut data).or(Err(BadPos))?;
+
+        let mut data = &data[..];
+
+        let name = data.take_as_str_until_nul()?.to_owned();
+        let has_skeleton = data.take_u8()? > 0;
+        let model_origin = (0..10).map(|_| data.take_f32_le()).collect::<Result<Vec<_>, _>>()?;
+        let hpnt_count = data.take_u16_le()?;
+        let hdmy_count = data.take_u16_le()?;
+        let hlpr_index_uncompressed = data.take_u32_le()?;
+        let padding = data.take_u16_le()?;
+        let hpnt_compressed = data.take_u16_le()?;
+
+        println!("name {:?}", name);
+        println!("has_skeleton {:?}", has_skeleton);
+        println!("model_origin {:?}", model_origin);
+        println!("hpnt_count {:?}", hpnt_count);
+        println!("hdmy_count {:?}", hdmy_count);
+        println!("hlpr_index_uncompressed {:?}", hlpr_index_uncompressed);
+        println!("padding {:?}", padding);
+        println!("hpnt_compressed {:?}", hpnt_compressed);
+
+        let helper_points = (0..hpnt_count)
+            .map(|_| Self::decode_helper_point(&mut data))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        println!("helper_points {:?}", helper_points);
+
+        let hdmy_compressed = data.take_u16_le()?;
+
+        let helper_dummies = (0..hdmy_count)
+            .map(|_| Self::decode_helper_dummy(&mut data))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        println!("hdmy_compressed {:?}", hdmy_compressed);
+        println!("helper_dummies {:?}", helper_dummies);
+
+        let hlpr_index_compressed = data.take_u16_le()?;
+        let hpnt_index_size = data.take_u16_le()?;
+
+        let hpnt_index = (0..hpnt_index_size.saturating_sub(2))
+            .map(|_| data.take_u8())
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let hdmy_index = (0..hlpr_index_uncompressed.saturating_sub(hpnt_index_size as u32))
+            .map(|_| data.take_u8())
+            .collect::<Result<Vec<_>, _>>()?;
+
+        println!("hlpr_index_compressed {:?}", hlpr_index_compressed);
+        println!("hpnt_index_size {:?}", hpnt_index_size);
+        println!("hpnt_index {:?}", hpnt_index);
+        println!("hdmy_index {:?}", hdmy_index);
+
+        let material_count = data.take_u32_le()?;
+        let surface_count = data.take_u32_le()?;
+        let bone_count = data.take_u32_le()?;
+        let bone_index_size = data.take_u32_le()?;
+        let unknown3 = data.take_u8()?;
+        let unknown4 = data.take_u16_le()?;
+        let unknown5 = data.take_u16_le()?;
+        let compressed = data.take_u16_le()?;
+
+        let bone_index_reference = (0..bone_count.saturating_sub(1))
+            .map(|_| data.take_u16_le())
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let bone_index_compressed = data.take_u16_le()?;
+
+        let bone_index_reference = (0..bone_index_size).map(|_| data.take_u8()).collect::<Result<Vec<_>, _>>()?;
+
+        let compressed_size = data.take_u16_le()?;
+
+        println!("material_count {:?}", material_count);
+        println!("surface_count {:?}", surface_count);
+        println!("bone_count {:?}", bone_count);
+        println!("bone_index_size {:?}", bone_index_size);
+        println!("unknown3 {:?}", unknown3);
+        println!("unknown4 {:?}", unknown4);
+        println!("unknown5 {:?}", unknown5);
+        println!("compressed {:?}", compressed);
+        println!("bone_index_reference {:?}", bone_index_reference);
+        println!("bone_index_compressed {:?}", bone_index_compressed);
+        println!("bone_index_reference {:?}", bone_index_reference);
+        println!("compressed_size {:?}", compressed_size);
+
+        Err(BadPos)
     }
 
-    pub fn decode_bbm(input: &[u8]) -> IResult<&[u8], Bbm, Error> {
-        let (input, header) = Self::decode_header(input)?;
-
-        Ok(
-            (
-                input,
-                Bbm {
-                    header: header,
-                }
-            )
-        )
+    pub fn decode_helper_point(data: &mut &[u8]) -> Result<BbmHelperPoint, BadPos> {
+        let matrix = (0..4).map(|_| data.take_f32_le()).collect::<Result<Vec<_>, _>>()?;
+        let hierarchy = data.take_i32_le()?;
+        Ok(BbmHelperPoint { matrix, hierarchy })
     }
 
-    pub fn decode_header(input: &[u8]) -> IResult<&[u8], BbmHeader, Error> {
-        let (input, name) = decode_null_terminated_string(input)?;
-        let (input, has_skeleton) = le_u8(input)?;
-        let (input, model_origin) = count(le_f32, 10usize)(input)?;
-        let (input, hpnt_count) = le_u16(input)?;
-        let (input, hdmy_count) = le_u16(input)?;
-        let (input, hlpr_index_uncompressed) = le_u32(input)?;
-        let (input, padding) = le_u16(input)?;
-        let (input, hpnt_compressed) = le_u16(input)?;
-        let (input, helper_points) = count(Self::decode_helper_point, hpnt_count as usize)(input)?;
-        let (input, hdmy_compressed) = le_u16(input)?;
-        let (input, helper_dummies) = count(Self::decode_helper_dummy, hdmy_count as usize)(input)?;
-        // let (input, hlpr_index_compressed) = le_u16(input)?;
-        let (input, hpnt_index_size) = le_u16(input)?;
-        let (input, hpnt_index) = count(le_u8, hpnt_index_size.saturating_sub(2) as usize)(input)?;
-        // let (input, hdmy_index) = count(le_u8, (hlpr_index_uncompressed.checked_sub(hpnt_index_size.into()).unwrap_or(0)) as usize)(input)?;
-        // let (input, material_count) = le_u32(input)?;
-        // let (input, surface_count) = le_u32(input)?;
-        // let (input, bone_count) = le_u32(input)?;
-        // let (input, bone_index_size) = le_u32(input)?;
-        // let (input, unknown3) = le_u8(input)?;
-        // let (input, unknown4) = le_u16(input)?;
-        // let (input, unknown5) = le_u16(input)?;
-        // let (input, compressed) = le_u16(input)?;
-        // let (input, bone_index_reference) = count(le_u16, (bone_count - 1) as usize)(input)?;
-        // let (input, bone_index_compressed) = le_u16(input)?;
-        // let (input, bone_index) = count(le_u8, bone_index_size as usize)(input)?;
-        // let (input, compressed_size) = le_u16(input)?;
-
-        dbg!(&name);
-        dbg!(&has_skeleton);
-        dbg!(&model_origin);
-        dbg!(&hpnt_count);
-        dbg!(&hdmy_count);
-        dbg!(&hlpr_index_uncompressed);
-        dbg!(&padding);
-        dbg!(&hpnt_compressed);
-        dbg!(&helper_points);
-        dbg!(&hdmy_compressed);
-        dbg!(&helper_dummies);
-        // dbg!(&hlpr_index_compressed);
-        dbg!(&hpnt_index_size);
-        dbg!(hpnt_index.len()); // dbg!(&hpnt_index);
-        // dbg!(&hdmy_index);
-        // dbg!(&material_count);
-        // dbg!(&surface_count);
-        // dbg!(&bone_count);
-        // dbg!(&bone_index_size);
-        // dbg!(&unknown3);
-        // dbg!(&unknown4);
-        // dbg!(&unknown5);
-        // dbg!(&compressed);
-
-        // hex_table::HexTable::default().format(&input[..256], &mut std::io::stdout()).unwrap();
-        dbg!(input.len());
-        println!("");
-
-        Ok(
-            (
-                input,
-                BbmHeader {
-                    name,
-                    has_skeleton,
-                    model_origin,
-                    hpnt_count,
-                    hdmy_count,
-                    hlpr_index_uncompressed,
-                    padding,
-                    hpnt_compressed,
-                    helper_points,
-                    hdmy_compressed,
-                    helper_dummies,
-                    // hlpr_index_compressed,
-                    hpnt_index_size,
-                    hpnt_index,
-                    // hdmy_index,
-                    // material_count,
-                    // surface_count,
-                    // bone_count,
-                    // bone_index_size,
-                    // unknown3,
-                    // unknown4,
-                    // unknown5,
-                    // compressed,
-                    // bone_index_reference,
-                    // bone_index_compressed,
-                    // bone_index,
-                    // compressed_size,
-                }
-            )
-        )
+    pub fn decode_helper_dummy(data: &mut &[u8]) -> Result<BbmHelperPoint, BadPos> {
+        let matrix = (0..13).map(|_| data.take_f32_le()).collect::<Result<Vec<_>, _>>()?;
+        let hierarchy = data.take_i32_le()?;
+        Ok(BbmHelperPoint { matrix, hierarchy })
     }
 
-    pub fn decode_helper_point(input: &[u8]) -> IResult<&[u8], BbmHelperPoint, Error> {
-        let (input, matrix) = count(le_f32, 4usize)(input)?;
-        let (input, hierarchy) = le_i32(input)?;
+    // pub fn decode_bbm(input: &[u8]) -> IResult<&[u8], Bbm, Error> {
+    //     let (input, header) = Self::decode_header(input)?;
 
-        Ok(
-            (
-                input,
-                BbmHelperPoint {
-                    matrix: matrix,
-                    hierarchy: hierarchy,
-                }
-            )
-        )
-    }
+    //     Ok(
+    //         (
+    //             input,
+    //             Bbm {
+    //                 name,
+    //                 has_skeleton,
+    //                 model_origin,
+    //                 hpnt_count,
+    //                 hdmy_count,
+    //                 hlpr_index_uncompressed,
+    //                 padding,
+    //                 hpnt_compressed,
+    //                 helper_points,
+    //                 hdmy_compressed,
+    //                 helper_dummies,
+    //                 // hlpr_index_compressed,
+    //                 hpnt_index_size,
+    //                 hpnt_index,
+    //                 // hdmy_index,
+    //                 // material_count,
+    //                 // surface_count,
+    //                 // bone_count,
+    //                 // bone_index_size,
+    //                 // unknown3,
+    //                 // unknown4,
+    //                 // unknown5,
+    //                 // compressed,
+    //                 // bone_index_reference,
+    //                 // bone_index_compressed,
+    //                 // bone_index,
+    //                 // compressed_size,
+    //             }
+    //         )
+    //     )
+    // }
 
-    pub fn decode_helper_dummy(input: &[u8]) -> IResult<&[u8], BbmHelperDummy, Error> {
-        let (input, matrix) = count(le_f32, 13usize)(input)?;
-        let (input, hierarchy) = le_i32(input)?;
+    // pub fn decode_header(input: &[u8]) -> IResult<&[u8], BbmHeader, Error> {
+    //     let (input, name) = decode_null_terminated_string(input)?;
+    //     let (input, has_skeleton) = le_u8(input)?;
+    //     let (input, model_origin) = count(le_f32, 10usize)(input)?;
+    //     let (input, hpnt_count) = le_u16(input)?;
+    //     let (input, hdmy_count) = le_u16(input)?;
+    //     let (input, hlpr_index_uncompressed) = le_u32(input)?;
+    //     let (input, padding) = le_u16(input)?;
+    //     let (input, hpnt_compressed) = le_u16(input)?;
+    //     let (input, helper_points) = count(Self::decode_helper_point, hpnt_count as usize)(input)?;
+    //     let (input, hdmy_compressed) = le_u16(input)?;
+    //     let (input, helper_dummies) = count(Self::decode_helper_dummy, hdmy_count as usize)(input)?;
+    //     // let (input, hlpr_index_compressed) = le_u16(input)?;
+    //     let (input, hpnt_index_size) = le_u16(input)?;
+    //     let (input, hpnt_index) = count(le_u8, hpnt_index_size.saturating_sub(2) as usize)(input)?;
+    //     // let (input, hdmy_index) = count(le_u8, (hlpr_index_uncompressed.checked_sub(hpnt_index_size.into()).unwrap_or(0)) as usize)(input)?;
+    //     // let (input, material_count) = le_u32(input)?;
+    //     // let (input, surface_count) = le_u32(input)?;
+    //     // let (input, bone_count) = le_u32(input)?;
+    //     // let (input, bone_index_size) = le_u32(input)?;
+    //     // let (input, unknown3) = le_u8(input)?;
+    //     // let (input, unknown4) = le_u16(input)?;
+    //     // let (input, unknown5) = le_u16(input)?;
+    //     // let (input, compressed) = le_u16(input)?;
+    //     // let (input, bone_index_reference) = count(le_u16, (bone_count - 1) as usize)(input)?;
+    //     // let (input, bone_index_compressed) = le_u16(input)?;
+    //     // let (input, bone_index) = count(le_u8, bone_index_size as usize)(input)?;
+    //     // let (input, compressed_size) = le_u16(input)?;
 
-        Ok(
-            (
-                input,
-                BbmHelperDummy {
-                    matrix: matrix,
-                    hierarchy: hierarchy,
-                }
-            )
-        )
-    }
+    //     dbg!(&name);
+    //     dbg!(&has_skeleton);
+    //     dbg!(&model_origin);
+    //     dbg!(&hpnt_count);
+    //     dbg!(&hdmy_count);
+    //     dbg!(&hlpr_index_uncompressed);
+    //     dbg!(&padding);
+    //     dbg!(&hpnt_compressed);
+    //     dbg!(&helper_points);
+    //     dbg!(&hdmy_compressed);
+    //     dbg!(&helper_dummies);
+    //     // dbg!(&hlpr_index_compressed);
+    //     dbg!(&hpnt_index_size);
+    //     dbg!(hpnt_index.len()); // dbg!(&hpnt_index);
+    //     // dbg!(&hdmy_index);
+    //     // dbg!(&material_count);
+    //     // dbg!(&surface_count);
+    //     // dbg!(&bone_count);
+    //     // dbg!(&bone_index_size);
+    //     // dbg!(&unknown3);
+    //     // dbg!(&unknown4);
+    //     // dbg!(&unknown5);
+    //     // dbg!(&compressed);
+
+    //     // hex_table::HexTable::default().format(&input[..256], &mut std::io::stdout()).unwrap();
+    //     dbg!(input.len());
+    //     println!("");
+
+    //     Ok(
+    //         (
+    //             input,
+    //             BbmHeader {
+
+    //             }
+    //         )
+    //     )
+    // }
+
+    // pub fn decode_helper_point(input: &[u8]) -> IResult<&[u8], BbmHelperPoint, Error> {
+    //     let (input, matrix) = count(le_f32, 4usize)(input)?;
+    //     let (input, hierarchy) = le_i32(input)?;
+
+    //     Ok(
+    //         (
+    //             input,
+    //             BbmHelperPoint {
+    //                 matrix: matrix,
+    //                 hierarchy: hierarchy,
+    //             }
+    //         )
+    //     )
+    // }
+
+    // pub fn decode_helper_dummy(input: &[u8]) -> IResult<&[u8], BbmHelperDummy, Error> {
+    //     let (input, matrix) = count(le_f32, 13usize)(input)?;
+    //     let (input, hierarchy) = le_i32(input)?;
+
+    //     Ok(
+    //         (
+    //             input,
+    //             BbmHelperDummy {
+    //                 matrix: matrix,
+    //                 hierarchy: hierarchy,
+    //             }
+    //         )
+    //     )
+    // }
 }
