@@ -1,12 +1,16 @@
-// use crate::{BytesExt,Result,BadPos};
+// use crate::{Bytes,Result,BadPos};
 
-// use views::{Bytes,BadPos};
+//
+
+mod lev;
+mod tng;
+
+pub use lev::*;
+pub use tng::*;
 
 use std::io::{Read,Seek,SeekFrom};
 
-use views::{Bytes,BadPos};
-
-use crate::BytesExt;
+use crate::{Bytes,BadPos};
 
 #[derive(Debug)]
 pub struct Wad {

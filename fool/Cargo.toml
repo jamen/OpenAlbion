@@ -10,3 +10,4 @@ pico-args = "0.4.0"
 bytes = "1.0.1"
 serde_json = "1.0.61"
 views = { path = "../../views" }
+quick-xml = "0.22.0"

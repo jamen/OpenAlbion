@@ -1,11 +1,6 @@
-use views::{Bytes,BadPos};
-
-pub fn take_key(data: &mut &[u8]) -> Result<&str, BadPos> {
-    data.iter().take_while(||)
-}
-
-
-
+// pub fn take_key(data: &mut &[u8]) -> Result<&str, BadPos> {
+//     data.iter().take_while(||)
+// }
 
 // use super::{
 //     Error,

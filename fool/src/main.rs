@@ -1,14 +1,14 @@
 use std::collections::HashSet;
 use std::path::{PathBuf,Component};
 use std::fs::{read,write,create_dir_all,File};
-use std::io::BufReader;
+use std::io::{Read,BufReader};
 use std::ffi::OsStr;
 
 use pico_args::Arguments;
 
-use fable_data::{Wad,Big,Lev,Stb,StbLev,BinNames,Bin,Bbm};
+use fable_data::{Wad,Big,BigInfo,Texture,Lev,Stb,StbLev,NamesBin,Bin,Mesh};
 
-use views::{View,Bytes};
+
 
 fn main() {
     let mut args = Arguments::from_env();
@@ -29,6 +29,7 @@ fn main() {
         Some("stb_lev") => stb_lev(args, source_path),
         Some("bbm") => bbm(args, source_path),
         Some("bin") => names_bin(args, source_path),
+        Some("tex") => tex(args, source_path),
         _ => panic!("File has unhandled extension and no flag was given to specify the format."),
     }
 }
@@ -142,134 +143,165 @@ fn stb(mut args: Arguments, path: PathBuf) {
 
 fn big(mut args: Arguments, path: PathBuf) {
     let mut big_file = BufReader::new(File::open(&path).unwrap());
-    let big = Big::decode(&mut big_file).unwrap();
 
-    if args.contains(["-d","--debug"]) {
-        println!("{:#?}", big);
-        return
-    }
+    let big = Big::decode_reader_with_path(&mut big_file, &path).unwrap();
 
-    if args.contains("--text") {
-        println!("id, target, script, sound, text");
-        for bank in big.banks.iter() {
-            for entry in bank.entries.iter() {
-                if entry.kind != 26807 {
-                    // println!("{:?} {:?}", entry.symbol, entry.kind);
-                    continue
-                }
+    if let Ok(Some(bank_name)) = args.opt_free_from_str::<String>() {
+        if let Some(bank) = big.banks.get(&bank_name) {
+            if let Ok(Some(entry_name)) = args.opt_free_from_str::<String>() {
+                if let Some(entry) = bank.entries.get(&entry_name) {
+                    println!("entry {:?} {:#?}", bank_name, entry);
 
-                // println!("very begining");
+                    let mut data = vec![0; entry.data_size as usize];
 
-                let mut entry_data = vec![0; entry.data_size as usize];
+                    entry.read_from(&mut big_file, &mut data).unwrap();
 
-                entry.read_from(&mut big_file, &mut entry_data).unwrap();
-
-                // println!("read entry");
-
-                let mut entry_data = &mut entry_data[..];
-
-                let u16_data: Vec<u16> = entry_data
-                    .chunks_exact(2)
-                    .map(|x| u16::from_le_bytes([ x[0], x[1] ]))
-                    .take_while(|x| *x != 0)
-                    .collect();
-
-                let _ = entry_data.take((u16_data.len() + 1) * 2);
-
-                let text = String::from_utf16(&u16_data).unwrap();
-                let text = text.replace("\"", "\"\"");
-
-                // println!("{}", text);
-                // print!("\"{}\",", text);
-
-                let len = entry_data.take_u32_le().unwrap();
-                let script = entry_data.take_as_str(len as usize).unwrap().to_owned();
-                let script = script.replace("\"", "\"\"");
-
-                // print!("\"{}\",", script);
-
-                let len = entry_data.take_u32_le().unwrap();
-                let target = entry_data.take_as_str(len as usize).unwrap().to_owned();
-                let target = target.replace("\"", "\"\"");
-
-                // print!("\"{}\",", target);
-
-                let len = entry_data.take_u32_le().unwrap();
-                let id = entry_data.take_as_str(len as usize).unwrap().to_owned();
-                let id = id.replace("\"", "\"\"");
-
-                // print!("\"{}\",", id);
-
-                let actions_count = entry_data.take_u32_le().unwrap();
-                let mut actions = Vec::new();
-
-                for _ in 0..actions_count {
-                    let id = entry_data.take_u32_le().unwrap();
-                    let name = entry_data.take_as_str_until_nul().unwrap().to_owned();
-                    actions.push((id, name));
-                }
-
-                let actions_str = format!("{:?}", actions).replace("\"", "\"\"");
-
-                // print!("\"{}\"\n", unknown_1);
-
-                // let sound = entry_data.take_as_str(len as usize).unwrap().to_owned();
-                // let sound = sound.replace("\"", "\"\"");
-
-                // println!("\"{:?}\", \"{:?}\", \"{:?}\", \"{:?}\", \"{:?}\", \"{:?}\"", text,
-                // script, target, id, unknown_1, unknown_2);
-
-                // println!("\"{}\", \"{}\", \"{}\", \"{}\", \"{}\", \"{:?}\"", text, script,
-                // target, id, unknown_1, unknown_2);
-
-                println!("\"{}\", \"{}\", \"{}\", \"{}\", \"{}\"", id, target, script, actions_str, text);
-            }
-        }
-        return
-    }
-
-    let mut types_1 = HashSet::new();
-    // let mut types_2 = HashSet::new();
-
-    for bank in big.banks.iter() {
-        for entry in bank.entries.iter() {
-            let mut file_data = vec![0; entry.data_size as usize];
-
-            entry.read_from(&mut big_file, &mut file_data).unwrap();
-
-            let file_path =
-                PathBuf::from(&bank.name).join(
-                    if entry.name.starts_with("[") {
-                        let path = &entry.name[1 .. entry.name.len() - 1];
-                        let path = PathBuf::from(path);
-                        let file_stem = path.file_stem().unwrap();
-                        // println!("path name {:?}", entry.name);
-                        file_stem.to_str().unwrap().to_owned()
-                    } else {
-                        entry.name.clone()
+                    match &entry.info {
+                        BigInfo::Texture(info) => {
+                            let tex = Texture::decode(&data, info).unwrap();
+                        },
+                        BigInfo::Mesh(info) => {
+                            let mesh = Mesh::decode(&data, info).unwrap();
+                        }
+                        _ => {}
                     }
-                );
-
-                if types_1.contains(&entry.kind) {
-                    types_1.insert(entry.kind);
-                    println!("{:?} {:?}", file_path, entry.kind);
+                } else {
+                    eprintln!("Entry not found {:?}", entry_name);
                 }
-
-                // if types_2.contains(&entry.kind_2) {
-                //     types_2.insert(entry.kind_2);
-                //     println!("{:?} {:?}", file_path, entry.kind_2);
-                // }
-
-
-            match create_dir_all(file_path.parent().unwrap()) {
-                Ok(_) => {}
-                Err(x) if x.kind() == std::io::ErrorKind::AlreadyExists => {}
-                Err(x) => panic!("{}", x),
-            };
-
-            write(&file_path, file_data).unwrap();
+            }
+        } else {
+            eprintln!("Bank not found {:?}", bank_name);
         }
+    } else {
+
     }
+
+    // if args.contains(["-d","--debug"]) {
+    //     println!("{:#?}", big);
+    //     return
+    // }
+
+    // if args.contains("--text") {
+    //     println!("id, target, script, sound, text");
+    //     for bank in big.banks.iter() {
+    //         for entry in bank.entries.iter() {
+    //             if entry.kind != 26807 {
+    //                 // println!("{:?} {:?}", entry.symbol, entry.kind);
+    //                 continue
+    //             }
+
+    //             // println!("very begining");
+
+    //             let mut entry_data = vec![0; entry.data_size as usize];
+
+    //             entry.read_from(&mut big_file, &mut entry_data).unwrap();
+
+    //             // println!("read entry");
+
+    //             let mut entry_data = &mut entry_data[..];
+
+    //             let u16_data: Vec<u16> = entry_data
+    //                 .chunks_exact(2)
+    //                 .map(|x| u16::from_le_bytes([ x[0], x[1] ]))
+    //                 .take_while(|x| *x != 0)
+    //                 .collect();
+
+    //             let _ = entry_data.take((u16_data.len() + 1) * 2);
+
+    //             let text = String::from_utf16(&u16_data).unwrap();
+    //             let text = text.replace("\"", "\"\"");
+
+    //             // println!("{}", text);
+    //             // print!("\"{}\",", text);
+
+    //             let len = entry_data.take_u32_le().unwrap();
+    //             let script = entry_data.take_as_str(len as usize).unwrap().to_owned();
+    //             let script = script.replace("\"", "\"\"");
+
+    //             // print!("\"{}\",", script);
+
+    //             let len = entry_data.take_u32_le().unwrap();
+    //             let target = entry_data.take_as_str(len as usize).unwrap().to_owned();
+    //             let target = target.replace("\"", "\"\"");
+
+    //             // print!("\"{}\",", target);
+
+    //             let len = entry_data.take_u32_le().unwrap();
+    //             let id = entry_data.take_as_str(len as usize).unwrap().to_owned();
+    //             let id = id.replace("\"", "\"\"");
+
+    //             // print!("\"{}\",", id);
+
+    //             let actions_count = entry_data.take_u32_le().unwrap();
+    //             let mut actions = Vec::new();
+
+    //             for _ in 0..actions_count {
+    //                 let id = entry_data.take_u32_le().unwrap();
+    //                 let name = entry_data.take_as_str_until_nul().unwrap().to_owned();
+    //                 actions.push((id, name));
+    //             }
+
+    //             let actions_str = format!("{:?}", actions).replace("\"", "\"\"");
+
+    //             // print!("\"{}\"\n", unknown_1);
+
+    //             // let sound = entry_data.take_as_str(len as usize).unwrap().to_owned();
+    //             // let sound = sound.replace("\"", "\"\"");
+
+    //             // println!("\"{:?}\", \"{:?}\", \"{:?}\", \"{:?}\", \"{:?}\", \"{:?}\"", text,
+    //             // script, target, id, unknown_1, unknown_2);
+
+    //             // println!("\"{}\", \"{}\", \"{}\", \"{}\", \"{}\", \"{:?}\"", text, script,
+    //             // target, id, unknown_1, unknown_2);
+
+    //             println!("\"{}\", \"{}\", \"{}\", \"{}\", \"{}\"", id, target, script, actions_str, text);
+    //         }
+    //     }
+    //     return
+    // }
+
+    // let mut types_1 = HashSet::new();
+    // // let mut types_2 = HashSet::new();
+
+    // for bank in big.banks.iter() {
+    //     for entry in bank.entries.iter() {
+    //         let mut file_data = vec![0; entry.data_size as usize];
+
+    //         entry.read_from(&mut big_file, &mut file_data).unwrap();
+
+    //         let file_path =
+    //             PathBuf::from(&bank.name).join(
+    //                 if entry.name.starts_with("[") {
+    //                     let path = &entry.name[1 .. entry.name.len() - 1];
+    //                     let path = PathBuf::from(path);
+    //                     let file_stem = path.file_stem().unwrap();
+    //                     // println!("path name {:?}", entry.name);
+    //                     file_stem.to_str().unwrap().to_owned()
+    //                 } else {
+    //                     entry.name.clone()
+    //                 }
+    //             );
+
+    //             if !types_1.contains(&entry.kind) {
+    //                 types_1.insert(entry.kind);
+    //                 println!("{:?} {:?}", file_path, entry.kind);
+    //             }
+
+    //             // if types_2.contains(&entry.kind_2) {
+    //             //     types_2.insert(entry.kind_2);
+    //             //     println!("{:?} {:?}", file_path, entry.kind_2);
+    //             // }
+
+
+    //         match create_dir_all(file_path.parent().unwrap()) {
+    //             Ok(_) => {}
+    //             Err(x) if x.kind() == std::io::ErrorKind::AlreadyExists => {}
+    //             Err(x) => panic!("{}", x),
+    //         };
+
+    //         write(&file_path, file_data).unwrap();
+    //     }
+    // }
 }
 
 fn wad_lev(_args: Arguments, path: PathBuf) {
@@ -280,8 +312,10 @@ fn wad_lev(_args: Arguments, path: PathBuf) {
 }
 
 fn bbm(_args: Arguments, path: PathBuf) {
-    let mut bbm_file = BufReader::new(File::open(path).unwrap());
-    let _bbm = Bbm::decode(&mut bbm_file).unwrap();
+    // let mut bbm_file = BufReader::new(File::open(path).unwrap());
+    // let mut data = Vec::new();
+    // bbm_file.read_to_end(&mut data).unwrap();
+    // let _bbm = Mesh::decode(&mut data).unwrap();
 }
 
 fn stb_lev(_args: Arguments, path: PathBuf) {
@@ -293,6 +327,11 @@ fn stb_lev(_args: Arguments, path: PathBuf) {
 
 fn names_bin(_args: Arguments, path: PathBuf) {
     let mut bin_file = BufReader::new(File::open(path).unwrap());
-    // let names_bin = BinNames::decode(&mut bin_file).unwrap();
+    // let names_bin = NamesBin::decode(&mut bin_file).unwrap();
     let bin = Bin::decode(&mut bin_file).unwrap();
+}
+
+fn tex(_args: Arguments, path: PathBuf) {
+    // let mut tex_file = BufReader::new(File::open(path).unwrap());
+    // let tex = Tex::decode(&mut tex_file).unwrap();
 }

@@ -1,6 +1,6 @@
-use std::io::{Read,Seek};
+use std::io::Read;
 
-use views::{Bytes,BadPos};
+use crate::{Bytes,BadPos,BigMeshInfo};
 
 /// Mesh format.
 ///
@@ -171,7 +171,7 @@ use views::{Bytes,BadPos};
 /// ```
 ///
 #[derive(Debug,PartialEq)]
-pub struct Bbm {
+pub struct Mesh {
     pub name: String,
     pub has_skeleton: u8,
     pub model_origin: Vec<f32>,
@@ -180,9 +180,9 @@ pub struct Bbm {
     pub hlpr_index_uncompressed: u32,
     pub padding: u16,
     pub hpnt_compressed: u16,
-    pub helper_points: Vec<BbmHelperPoint>,
+    pub helper_points: Vec<MeshHelperPoint>,
     pub hdmy_compressed: u16,
-    pub helper_dummies: Vec<BbmHelperDummy>,
+    pub helper_dummies: Vec<MeshHelperDummy>,
     // pub hlpr_index_compressed: u16,
     pub hpnt_index_size: u16,
     pub hpnt_index: Vec<u8>,
@@ -202,19 +202,19 @@ pub struct Bbm {
 }
 
 #[derive(Debug,PartialEq)]
-pub struct BbmHelperPoint {
+pub struct MeshHelperPoint {
     pub matrix: Vec<f32>, // 2x2 matrix?
     pub hierarchy: i32,
 }
 
 #[derive(Debug,PartialEq)]
-pub struct BbmHelperDummy {
+pub struct MeshHelperDummy {
     pub matrix: Vec<f32>, // 13 float matrix?
     pub hierarchy: i32,
 }
 
-impl Bbm {
-    pub fn decode<T: Read + Seek>(source: &mut T) -> Result<Bbm, BadPos> {
+impl Mesh {
+    pub fn decode(mut source: &[u8], info: &BigMeshInfo) -> Result<Mesh, BadPos> {
         let mut data = Vec::new();
 
         source.read_to_end(&mut data).or(Err(BadPos))?;
@@ -305,25 +305,25 @@ impl Bbm {
         Err(BadPos)
     }
 
-    pub fn decode_helper_point(data: &mut &[u8]) -> Result<BbmHelperPoint, BadPos> {
+    pub fn decode_helper_point(data: &mut &[u8]) -> Result<MeshHelperPoint, BadPos> {
         let matrix = (0..4).map(|_| data.take_f32_le()).collect::<Result<Vec<_>, _>>()?;
         let hierarchy = data.take_i32_le()?;
-        Ok(BbmHelperPoint { matrix, hierarchy })
+        Ok(MeshHelperPoint { matrix, hierarchy })
     }
 
-    pub fn decode_helper_dummy(data: &mut &[u8]) -> Result<BbmHelperPoint, BadPos> {
+    pub fn decode_helper_dummy(data: &mut &[u8]) -> Result<MeshHelperPoint, BadPos> {
         let matrix = (0..13).map(|_| data.take_f32_le()).collect::<Result<Vec<_>, _>>()?;
         let hierarchy = data.take_i32_le()?;
-        Ok(BbmHelperPoint { matrix, hierarchy })
+        Ok(MeshHelperPoint { matrix, hierarchy })
     }
 
-    // pub fn decode_bbm(input: &[u8]) -> IResult<&[u8], Bbm, Error> {
+    // pub fn decode_mesh(input: &[u8]) -> IResult<&[u8], Mesh, Error> {
     //     let (input, header) = Self::decode_header(input)?;
 
     //     Ok(
     //         (
     //             input,
-    //             Bbm {
+    //             Mesh {
     //                 name,
     //                 has_skeleton,
     //                 model_origin,
@@ -356,7 +356,7 @@ impl Bbm {
     //     )
     // }
 
-    // pub fn decode_header(input: &[u8]) -> IResult<&[u8], BbmHeader, Error> {
+    // pub fn decode_header(input: &[u8]) -> IResult<&[u8], MeshHeader, Error> {
     //     let (input, name) = decode_null_terminated_string(input)?;
     //     let (input, has_skeleton) = le_u8(input)?;
     //     let (input, model_origin) = count(le_f32, 10usize)(input)?;
@@ -416,21 +416,21 @@ impl Bbm {
     //     Ok(
     //         (
     //             input,
-    //             BbmHeader {
+    //             MeshHeader {
 
     //             }
     //         )
     //     )
     // }
 
-    // pub fn decode_helper_point(input: &[u8]) -> IResult<&[u8], BbmHelperPoint, Error> {
+    // pub fn decode_helper_point(input: &[u8]) -> IResult<&[u8], MeshHelperPoint, Error> {
     //     let (input, matrix) = count(le_f32, 4usize)(input)?;
     //     let (input, hierarchy) = le_i32(input)?;
 
     //     Ok(
     //         (
     //             input,
-    //             BbmHelperPoint {
+    //             MeshHelperPoint {
     //                 matrix: matrix,
     //                 hierarchy: hierarchy,
     //             }
@@ -438,14 +438,14 @@ impl Bbm {
     //     )
     // }
 
-    // pub fn decode_helper_dummy(input: &[u8]) -> IResult<&[u8], BbmHelperDummy, Error> {
+    // pub fn decode_helper_dummy(input: &[u8]) -> IResult<&[u8], MeshHelperDummy, Error> {
     //     let (input, matrix) = count(le_f32, 13usize)(input)?;
     //     let (input, hierarchy) = le_i32(input)?;
 
     //     Ok(
     //         (
     //             input,
-    //             BbmHelperDummy {
+    //             MeshHelperDummy {
     //                 matrix: matrix,
     //                 hierarchy: hierarchy,
     //             }

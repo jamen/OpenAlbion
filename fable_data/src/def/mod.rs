@@ -1,8 +1,12 @@
-use std::io::{Read,Write,Seek};
+mod xml;
 
-use views::{Bytes,BadPos};
+pub use xml::*;
 
-pub struct BinNames {
+use std::io::Read;
+
+use crate::{Bytes,BadPos};
+
+pub struct NamesBin {
     pub unknown_1: u32,
     pub unknown_2: u32,
     pub unknown_3: u32,
@@ -14,14 +18,8 @@ pub struct Bin {
 
 }
 
-impl BinNames {
-    pub fn decode<T: Read + Seek>(mut source: T) -> Result<BinNames, BadPos> {
-        let mut data = Vec::new();
-
-        source.read_to_end(&mut data).or(Err(BadPos))?;
-
-        let mut data = &mut data[..];
-
+impl NamesBin {
+    pub fn decode(mut data: &[u8]) -> Result<NamesBin, BadPos> {
         let unknown_1 = data.take_u32_le()?;
         let unknown_2 = data.take_u32_le()?;
         let names_count = data.take_u32_le()?;
@@ -36,7 +34,7 @@ impl BinNames {
             names.push((unknown_6,name));
         }
 
-        Ok(BinNames {
+        Ok(NamesBin {
             unknown_1,
             unknown_2,
             unknown_3,
@@ -47,14 +45,8 @@ impl BinNames {
 }
 
 impl Bin {
-    pub fn decode<T: Read + Seek>(mut source: T) -> Result<Bin, BadPos> {
-        let mut data = Vec::new();
-
-        source.read_to_end(&mut data).or(Err(BadPos))?;
-
+    pub fn decode(mut data: &[u8]) -> Result<Bin, BadPos> {
         let starting_len = data.len();
-
-        let mut data = &mut data[..];
 
         let unknown_1 = data.take_u8()?;
         let unknown_2 = data.take_u32_le()?;

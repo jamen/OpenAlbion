@@ -1,8 +1,4 @@
-use std::io::{Read,Seek};
-
-use views::{Bytes,BadPos};
-
-use crate::BytesExt;
+use crate::{Bytes,BadPos};
 
 #[derive(Debug,PartialEq)]
 pub struct Lev {
@@ -136,10 +132,8 @@ pub enum LevLevelNode {
 }
 
 impl Lev {
-    pub fn decode<T: Read + Seek>(source: &mut T) -> Result<Lev, BadPos> {
-        let mut data = Vec::new();
-        source.read_to_end(&mut data).or(Err(BadPos))?;
-        let mut map_data = &data[..];
+    pub fn decode(mut data: &[u8]) -> Result<Lev, BadPos> {
+        let mut map_data = data.clone();
 
         let _header_size = map_data.take_u32_le()?;
         let version = map_data.take_u16_le()?;
