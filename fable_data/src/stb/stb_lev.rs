@@ -1,6 +1,6 @@
 use std::io::{Read,Seek};
 
-use crate::{Bytes,BadPos};
+use crate::{View,Bytes};
 
 #[derive(Debug)]
 pub struct StbLev {
@@ -23,15 +23,15 @@ impl StbLev {
 
         let mut data = &data[..];
 
-        let first_block = Bytes::take(&mut data, 2048)?;
+        let first_block = data.forward(2048)?;
 
         println!("{:?}", first_block);
 
         let second_block_len = data.take_u32_le()? as usize;
-        let second_block = Bytes::take(&mut data, second_block_len + (second_block_len % 2048))?.to_owned();
+        let second_block = data.forward(second_block_len + (second_block_len % 2048))?.to_owned();
         let second_block = (&second_block[..second_block_len]).to_owned();
 
-        // let second_block = Bytes::take(&mut data, (second_block_len as usize).min(2048) - 4)?;
+        // let second_block = data.forward((second_block_len as usize).min(2048) - 4)?;
 
         println!("{:?}", second_block);
 
@@ -43,8 +43,8 @@ impl StbLev {
             let decompressed_size = data.take_u32_le()?;
             let compressed_len = data.take_u32_le()?;
             println!("{:?} {:?}", decompressed_size, compressed_len);
-            let compressed_data = Bytes::take(&mut data, compressed_len as usize)?.to_owned();
-            Bytes::take(&mut data, 2040usize.saturating_sub(compressed_data.len()))?;
+            let compressed_data = data.forward(compressed_len as usize)?.to_owned();
+            data.forward(2040usize.saturating_sub(compressed_data.len()))?;
             // println!("{:?} {:?} {:x?}", decompressed_size, compressed_len, compressed_data);
             let decompressed = crate::lzo::decompress(&compressed_data, decompressed_size as usize);
             // println!("{:?} {:?} {:?}", decompressed_size, compressed_len, decompressed);

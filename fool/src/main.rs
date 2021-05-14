@@ -145,29 +145,64 @@ fn big(mut args: Arguments, path: PathBuf) {
     let mut big_file = BufReader::new(File::open(&path).unwrap());
 
     let big = Big::decode_reader_with_path(&mut big_file, &path).unwrap();
+    let big_index = big.index_by_name();
 
     if let Ok(Some(bank_name)) = args.opt_free_from_str::<String>() {
-        if let Some(bank) = big.banks.get(&bank_name) {
-            if let Ok(Some(entry_name)) = args.opt_free_from_str::<String>() {
-                if let Some(entry) = bank.entries.get(&entry_name) {
-                    println!("entry {:?} {:#?}", bank_name, entry);
+        if let Some(bank) = big_index.get(&bank_name) {
+            let bank_index = bank.index_by_name();
 
-                    let mut data = vec![0; entry.data_size as usize];
+            match args.opt_free_from_str::<String>() {
+                Ok(Some(entry_name)) => {
+                    if let Some(entry) = bank_index.get(&entry_name) {
+                        let mut data = vec![0; entry.data_size as usize];
 
-                    entry.read_from(&mut big_file, &mut data).unwrap();
+                        entry.read_from(&mut big_file, &mut data).unwrap();
 
-                    match &entry.info {
-                        BigInfo::Texture(info) => {
-                            let tex = Texture::decode(&data, info).unwrap();
-                        },
-                        BigInfo::Mesh(info) => {
-                            let mesh = Mesh::decode(&data, info).unwrap();
+                        match &entry.info {
+                            BigInfo::Texture(info) => {
+                                // println!("{:?} {:#?}", entry.name, info);
+                                let tex = Texture::decode(&data, info).unwrap();
+                            },
+                            BigInfo::Mesh(info) => {
+                                let mesh = Mesh::decode(&data, info).unwrap();
+                                // println!("{:#?}\n{:#?}", info, mesh);
+                            }
+                            _ => {}
                         }
-                        _ => {}
+                    } else {
+                        eprintln!("Entry not found.");
                     }
-                } else {
-                    eprintln!("Entry not found {:?}", entry_name);
-                }
+                },
+                Ok(None) => {
+                    for entry in bank.entries.iter() {
+                        let mut data = vec![0; entry.data_size as usize];
+
+                        entry.read_from(&mut big_file, &mut data).unwrap();
+
+                        match &entry.info {
+                            BigInfo::Texture(info) => {
+                                // let tex = Texture::decode(&data, info).unwrap();
+                            },
+                            BigInfo::Mesh(info) => {
+                                let mesh = Mesh::decode(&data, info).unwrap();
+                                // if
+                                //     // mesh.helper_dummies_compressed > 0 &&
+                                //     // mesh.helper_dummies_compressed < 80 &&
+                                //     // mesh.helper_dummies_count > 1
+                                //     // mesh.helper_point_compressed > 0 &&
+                                //     // mesh.helper_point_compressed < 2
+                                //     // mesh.helper_dummies_compressed == 0 &&
+                                //     // mesh.helper_dummies_count == 2
+                                // {
+                                //     println!("{:?}", mesh.name);
+                                // }
+                            }
+                            _ => {}
+                        }
+                    }
+                    // eprintln!("Entry not found {:?}", entry_name);
+                },
+                Err(e) => panic!(e),
             }
         } else {
             eprintln!("Bank not found {:?}", bank_name);
@@ -305,10 +340,10 @@ fn big(mut args: Arguments, path: PathBuf) {
 }
 
 fn wad_lev(_args: Arguments, path: PathBuf) {
-    println!("{:?}", path.file_stem().unwrap());
-    let mut lev_file = BufReader::new(File::open(path).unwrap());
-    let lev = Lev::decode(&mut lev_file).unwrap();
-    println!("{:#?}", lev);
+    // println!("{:?}", path.file_stem().unwrap());
+    // let mut lev_file = BufReader::new(File::open(path).unwrap());
+    // let lev = Lev::decode(&mut lev_file).unwrap();
+    // println!("{:#?}", lev);
 }
 
 fn bbm(_args: Arguments, path: PathBuf) {
@@ -326,9 +361,9 @@ fn stb_lev(_args: Arguments, path: PathBuf) {
 }
 
 fn names_bin(_args: Arguments, path: PathBuf) {
-    let mut bin_file = BufReader::new(File::open(path).unwrap());
+    // let mut bin_file = BufReader::new(File::open(path).unwrap());
     // let names_bin = NamesBin::decode(&mut bin_file).unwrap();
-    let bin = Bin::decode(&mut bin_file).unwrap();
+    // let bin = Bin::decode(&mut bin_file).unwrap();
 }
 
 fn tex(_args: Arguments, path: PathBuf) {

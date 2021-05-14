@@ -1,4 +1,4 @@
-use crate::{Bytes,BadPos};
+use crate::{View,Bytes};
 
 #[derive(Debug,PartialEq)]
 pub struct Lev {
@@ -137,7 +137,7 @@ impl Lev {
 
         let _header_size = map_data.take_u32_le()?;
         let version = map_data.take_u16_le()?;
-        let _unknown_1 = Bytes::take(&mut map_data, 3usize)?; // fabletlcmod.com: 3 bytes of padding? see checksum.
+        let _unknown_1 = map_data.forward(3usize)?; // fabletlcmod.com: 3 bytes of padding? see checksum.
         let _unknown_2 = map_data.take_u32_le()?;
         let obsolete_offset = map_data.take_u32_le()?;
         let _unknown_3 = map_data.take_u32_le()?;
@@ -149,10 +149,10 @@ impl Lev {
         let height = map_data.take_u32_le()?;
         let _always_true = map_data.take_u8()?;
 
-        let heightmap_palette = Bytes::take(&mut map_data, 33792usize)?.to_owned(); // TODO: figure this out?
+        let heightmap_palette = map_data.forward(33792usize)?.to_owned(); // TODO: figure this out?
         let ambient_sound_version = map_data.take_u32_le()?;
         let sound_themes_count = map_data.take_u32_le()?;
-        let sound_palette = Bytes::take(&mut map_data, 33792usize)?.to_owned(); // TODO: figure this out?
+        let sound_palette = map_data.forward(33792usize)?.to_owned(); // TODO: figure this out?
         let checksum = map_data.take_u32_le()?; // fabletlcmod.com: only if the map header pad byte 2 is 9?
 
         let sound_themes = Self::decode_sound_themes(&mut map_data, sound_themes_count.saturating_sub(1) as usize)?;

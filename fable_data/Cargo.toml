@@ -10,6 +10,8 @@ repository = "https://github.com/jamen/open_albion"
 [dependencies]
 flate2 = "1.0.20"
 quick-xml = "0.22.0"
+bcndecode = "0.2.0"
+png = "0.16.8"
 
 [build-dependencies]
 cc = "1.0.67"

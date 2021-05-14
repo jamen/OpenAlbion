@@ -5,7 +5,7 @@ pub use stb_lev::*;
 use std::io::{Read,Seek,SeekFrom,Cursor};
 use std::collections::HashMap;
 
-use crate::{Bytes,BadPos};
+use crate::{Bytes};
 
 #[derive(Debug)]
 pub struct Stb {

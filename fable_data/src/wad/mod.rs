@@ -10,7 +10,7 @@ pub use tng::*;
 
 use std::io::{Read,Seek,SeekFrom};
 
-use crate::{Bytes,BadPos};
+use crate::{View,Bytes};
 
 #[derive(Debug)]
 pub struct Wad {
@@ -67,7 +67,7 @@ impl Wad {
         let mut entries = Vec::new();
 
         while entries.len() < entry_count as usize {
-            let unknown_1 = Bytes::take(&mut entries_data, 16)?.to_owned();
+            let unknown_1 = entries_data.forward(16)?.to_owned();
             let id = entries_data.take_u32_le()?;
             let unknown_2 = entries_data.take_u32_le()?;
             let data_size = entries_data.take_u32_le()?;

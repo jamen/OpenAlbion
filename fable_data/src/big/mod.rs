@@ -20,18 +20,19 @@ pub struct Big {
     pub magic_number: String,
     pub version: u32,
     pub banks_start: u32,
-    pub banks: HashMap<String, BigBank>,
+    pub banks: Vec<BigBank>,
 }
 
 #[derive(Debug)]
 pub struct BigBank {
+    pub name: String,
     pub unknown_1: u32,
     pub entries_count: u32,
     pub index_start: u32,
     pub index_size: u32,
     pub block_size: u32,
     pub file_type_counts: HashMap<u32, u32>,
-    pub entries: HashMap<String, BigEntry>,
+    pub entries: Vec<BigEntry>,
 }
 
 #[derive(Debug)]
@@ -42,6 +43,7 @@ pub struct BigEntry {
     pub data_size: u32,
     pub data_start: u32,
     pub unknown_2: u32,
+    pub name: String,
     pub crc: u32,
     pub sources: Vec<String>,
     pub info: BigInfo,
@@ -67,6 +69,7 @@ pub enum BigInfo {
     Texture(BigTextureInfo),
     Animation(BigAnimationInfo),
     Unknown(Vec<u8>),
+    None,
 }
 
 #[derive(Debug)]
@@ -148,7 +151,7 @@ impl Big {
         })
     }
 
-    fn decode_banks<T: Read + Seek>(mut source: T, banks_start: u32, kind: BigKind) -> Result<HashMap<String, BigBank>, BadPos> {
+    fn decode_banks<T: Read + Seek>(mut source: T, banks_start: u32, kind: BigKind) -> Result<Vec<BigBank>, BadPos> {
         let mut banks_source = Vec::new();
 
         source.seek(SeekFrom::Start(banks_start as u64)).or(Err(BadPos))?;
@@ -156,7 +159,7 @@ impl Big {
 
         let mut banks_source = &banks_source[..];
         let banks_count = banks_source.take_u32_le()?;
-        let mut banks = HashMap::new();
+        let mut banks = Vec::new();
 
         while banks.len() < banks_count as usize {
             let name = std::str::from_utf8(banks_source.take_until_nul()?).map_err(|_| BadPos)?.to_owned();
@@ -182,7 +185,8 @@ impl Big {
 
             let entries = Self::decode_entries(index_source, entries_count, kind)?;
 
-            banks.insert(name, BigBank {
+            banks.push(BigBank {
+                name,
                 unknown_1,
                 entries_count,
                 index_start,
@@ -196,8 +200,8 @@ impl Big {
         Ok(banks)
     }
 
-    fn decode_entries(mut index_source: &[u8], entries_count: u32, kind: BigKind) -> Result<HashMap<String, BigEntry>, BadPos> {
-        let mut entries = HashMap::new();
+    fn decode_entries(mut index_source: &[u8], entries_count: u32, kind: BigKind) -> Result<Vec<BigEntry>, BadPos> {
+        let mut entries = Vec::new();
 
         while entries.len() < entries_count as usize {
             let unknown_1 = index_source.take_u32_le()?;
@@ -209,6 +213,8 @@ impl Big {
             let name = index_source.take_as_str_with_u32_le_prefix()?.to_owned();
             let crc = index_source.take_u32_le()?;
 
+            // println!("{:?} {:?}", name, group);
+
             let sources_count = index_source.take_u32_le()?;
             let mut sources = Vec::new();
 
@@ -217,7 +223,7 @@ impl Big {
             }
 
             let info_size = index_source.take_u32_le()?;
-            let info_data = View::take(&mut index_source, info_size as usize)?;
+            let info_data = index_source.forward(info_size as usize)?;
             let info = match (kind, group) {
                 // (BigKind::Graphics, 0) => BigInfo::Unknown,
                 // Normal mesh?
@@ -225,7 +231,7 @@ impl Big {
                 // Flora mesh?
                 (BigKind::Graphics, 2) => BigInfo::Mesh(Self::decode_mesh_info(info_data)?),
                 // Physics mesh
-                (BigKind::Graphics, 3) => BigInfo::Mesh(Self::decode_mesh_info(info_data)?),
+                (BigKind::Graphics, 3) => BigInfo::Unknown(info_data.to_owned()),
                 (BigKind::Graphics, 4) => BigInfo::Mesh(Self::decode_mesh_info(info_data)?),
                 (BigKind::Graphics, 5) => BigInfo::Mesh(Self::decode_mesh_info(info_data)?),
                 // Normal animation?
@@ -248,13 +254,14 @@ impl Big {
                 (_, _) => BigInfo::Unknown(info_data.to_owned())
             };
 
-            entries.insert(name, BigEntry {
+            entries.push(BigEntry {
                 unknown_1,
                 id,
                 group,
                 data_size,
                 data_start,
                 unknown_2,
+                name,
                 crc,
                 sources,
                 info,
@@ -271,42 +278,39 @@ impl Big {
     //     }
     // }
 
-    fn decode_mesh_info(mut info_data: &[u8]) -> Result<BigMeshInfo, BadPos> {
-        let physics_mesh = info_data.take_u32_le()?;
+    fn decode_mesh_info(mut data: &[u8]) -> Result<BigMeshInfo, BadPos> {
+        // println!("{:?}", data);
 
-        // println!("phyiscs_mesh {:?}", physics_mesh);
+        let physics_mesh = data.take_u32_le()?;
 
         let mut unknown_1 = Vec::new();
         for _ in 0..10 {
-            unknown_1.push(info_data.take_f32_le()?)
+            unknown_1.push(data.take_f32_le()?)
         }
 
-        // println!("unknown_1 {:?}", unknown_1);
-
-        let compressed_lod_sizes_count = info_data.take_u32_le()?;
-
-        // println!("compressed_lod_sizes_count {:?}", compressed_lod_sizes_count);
+        let compressed_lod_sizes_count = data.take_u32_le()?;
 
         let mut compressed_lod_sizes = Vec::new();
         for _ in 0..compressed_lod_sizes_count as usize {
-            compressed_lod_sizes.push(info_data.take_u32_le()?);
+            compressed_lod_sizes.push(data.take_u32_le()?);
         }
-
-        // println!("compressed_lod_sizes {:?}", compressed_lod_sizes);
 
         // let unknown_2 = info_data.take_u32_le()?;
 
         // println!("unknown_2 {:?}", unknown_2);
 
-        let texture_ids_count = info_data.take_u32_le()?;
-
-        // println!("texture_ids_count {:?}", texture_ids_count);
+        let texture_ids_count = data.take_u32_le()?;
 
         let mut texture_ids = Vec::new();
         for _ in 0..texture_ids_count as usize {
-            texture_ids.push(info_data.take_u32_le()?);
+            texture_ids.push(data.take_u32_le()?);
         }
 
+        // println!("phyiscs_mesh {:?}", physics_mesh);
+        // println!("unknown_1 {:?}", unknown_1);
+        // println!("compressed_lod_sizes_count {:?}", compressed_lod_sizes_count);
+        // println!("compressed_lod_sizes {:?}", compressed_lod_sizes);
+        // println!("texture_ids_count {:?}", texture_ids_count);
         // println!("texture_ids {:?}", texture_ids);
 
         Ok(BigMeshInfo {
@@ -358,6 +362,20 @@ impl Big {
         Ok(BigAnimationInfo {
             unknown: info_data.to_vec(),
         })
+    }
+
+    pub fn index_by_name(&self) -> HashMap<&String, &BigBank> {
+        let mut index = HashMap::with_capacity(self.banks.len());
+        index.extend(self.banks.iter().map(|x| (&x.name, x)));
+        index
+    }
+}
+
+impl BigBank {
+    pub fn index_by_name(&self) -> HashMap<&String, &BigEntry> {
+        let mut index = HashMap::with_capacity(self.entries.len());
+        index.extend(self.entries.iter().map(|x| (&x.name, x)));
+        index
     }
 }
 

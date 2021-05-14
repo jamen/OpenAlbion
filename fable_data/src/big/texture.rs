@@ -1,81 +1,86 @@
 
 
-use crate::{BadPos,BigTextureInfo};
+use crate::{View,Bytes,BadPos,BigTextureInfo};
 
 #[derive(Debug)]
 pub struct Texture {
-    // info: BigTextureInfo,
-    // data: Vec<u8>,
+    width: u16,
+    height: u16,
+    dxt_compression: u16,
+    frames: Vec<Vec<u8>>,
 }
 
 impl Texture {
-    pub fn decode(source: &[u8], info: &BigTextureInfo) -> Result<Self, BadPos> {
-        // println!("source {:X?}", source);
+    pub fn decode(mut data: &[u8], info: &BigTextureInfo) -> Result<Self, BadPos> {
+        // println!("{:#?}", info);
 
-        // let header = View::take(&mut source, 4)?;
+        let mut frames = Vec::new();
 
-        // println!("header {:X?}", header);
+        if info.first_mipmap_compressed_size > 0 {
+            let size = info.first_mipmap_compressed_size & 0xffff0000 | data.take_u16_le()? as u32;
+            let size = if size as i16 == -1 { data.take_u32_le()? } else { size };
 
-        for i in 0..info.first_mipmap_compressed_size as usize {
-            for k in (i..=info.first_mipmap_compressed_size as usize).rev() {
-                let first_mipmap_compressed = &source[i..k];
+            let first_mipmap_compressed = data.forward(size as usize)?;
 
+            let data = crate::lzo::decompress(first_mipmap_compressed, info.first_mipmap_size as usize).or(Err(BadPos))?;
 
+            // let bc_format = match info.dxt_compression {
+            //     31 => { bcndecode::BcnEncoding::Bc1 },
+            //     32 => { bcndecode::BcnEncoding::Bc2 },
+            //     _ => { bcndecode::BcnEncoding::Bc2 }, // Idk but default to this
+            // };
 
-                match crate::lzo::decompress(first_mipmap_compressed, info.first_mipmap_size as usize) {
-                    Ok(x) => {
-                        println!("{:?} {:?} passed", i, info.first_mipmap_compressed_size as usize)
+            // let data = bcndecode::decode(&data, info.width as usize, info.height as usize, bc_format, bcndecode::BcnDecoderFormat::RGBA).unwrap();
 
-                        // println!("{:?} {:?}", i, x);
+            // let stdout = std::io::stdout();
+            // let mut stdout_writer = stdout.lock();
 
-                        // if first_mipmap_compressed.len() > largest {
-                        //     largest = first_mipmap_compressed.len();
-                        // }
-                    },
-                    Err(x) => {
-                        println!("{:?}..{:?} {:?} error {:?}", i, k, info.first_mipmap_compressed_size as usize, x);
-                    }
-                }
-            }
+            // let mut png_encoder = png::Encoder::new(&mut stdout_writer, info.width as u32, info.height as u32);
+
+            // png_encoder.set_color(png::ColorType::RGBA);
+            // png_encoder.set_depth(png::BitDepth::Eight);
+
+            // let mut writer = png_encoder.write_header().unwrap();
+
+            // writer.write_image_data(&data);
+
+            frames.push(data);
         }
 
-        // for i in 0..info.first_mipmap_compressed_size as usize {
-        //     let first_mipmap_compressed = &source[i..info.first_mipmap_compressed_size as usize];
+        // let data = &data[..252];
 
-        //     // println!("block {:X?}", first_mipmap_compressed);
+        let bc_format = match info.dxt_compression {
+            31 => { bcndecode::BcnEncoding::Bc1 },
+            32 => { bcndecode::BcnEncoding::Bc2 },
+            _ => { bcndecode::BcnEncoding::Bc2 }, // Idk but default to this
+        };
 
-        //     // println!("{:x?}", first_mipmap_compressed);
+        let data = bcndecode::decode(&data, info.width as usize / 2, info.height as usize / 2, bc_format, bcndecode::BcnDecoderFormat::RGBA).unwrap();
 
-        //     match crate::lzo::decompress(first_mipmap_compressed, info.first_mipmap_size as usize) {
-        //         Ok(x) => {
-        //             println!("{:?} {:?} passed", i, info.first_mipmap_compressed_size as usize)
+        let stdout = std::io::stdout();
+        let mut stdout_writer = stdout.lock();
 
-        //             // println!("{:?} {:?}", i, x);
+        let mut png_encoder = png::Encoder::new(&mut stdout_writer, info.width as u32 / 2, info.height as u32 / 2);
 
-        //             // if first_mipmap_compressed.len() > largest {
-        //             //     largest = first_mipmap_compressed.len();
-        //             // }
-        //         },
-        //         Err(x) => {
-        //             // println!("{:?} {:?} error {:?}", i, info.first_mipmap_compressed_size as usize, x);
-        //         }
-        //     }
+        png_encoder.set_color(png::ColorType::RGBA);
+        png_encoder.set_depth(png::BitDepth::Eight);
+
+        let mut writer = png_encoder.write_header().unwrap();
+
+        writer.write_image_data(&data);
+
+        // if info.mipmaps > 1 {
+
+        //     // for _ in 1..info.mipmaps {
+
+        //     // }
         // }
 
-        // let data = bcndecode::decode(
-        //     &source[..],
-        //     info.width as usize,
-        //     info.height as usize,
-        //     match info.dxt_compression {
-        //         1 => bcndecode::BcnEncoding::Bc1,
-        //         _ => return Err(BadPos),
-        //     },
-        //     bcndecode::BcnDecoderFormat::RGBA,
-        // ).or(Err(BadPos))?;
-
         Ok(Texture {
-            // info,
-            // data,
+            width: info.width,
+            height: info.height,
+            dxt_compression: info.dxt_compression,
+            frames,
         })
     }
 }
