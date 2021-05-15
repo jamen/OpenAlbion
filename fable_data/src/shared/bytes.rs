@@ -1,26 +1,26 @@
 use std::slice;
 use std::mem;
 
-macro_rules! impl_grab_int {
+macro_rules! impl_grab_num {
     ($($fn_name:ident, $typ:tt::$conv:tt,)*) => {
         $(
             fn $fn_name (&mut self) -> Option<$typ> {
-                let bytes = $self.forward(mem::size_of::<$typ>())?;
-                Ok($typ::$conv(unsafe { *(bytes.as_ptr() as *const [u8; mem::size_of::<$typ>()]) }))
+                let bytes = self.grab(mem::size_of::<$typ>())?;
+                Some($typ::$conv(unsafe { *(bytes.as_ptr() as *const [u8; mem::size_of::<$typ>()]) }))
             }
         )*
     }
 }
 
-pub(crate) trait Bytes {
-    fn grab(&mut self, n: usize) -> Result<&[T], BadPos>;
+pub(crate) trait Bytes: AsRef<[u8]> {
+    fn grab(&mut self, n: usize) -> Option<&[u8]>;
 
-    fn grab_u8(&mut self) -> Result<u8, BadPos> {
-        Ok(self.forward(1)?[0])
+    fn grab_u8(&mut self) -> Option<u8> {
+        Some(self.grab(1)?[0])
     }
 
-    fn grab_i8(&mut self) -> Result<i8, BadPos> {
-        Ok(self.grab_u8()? as i8)
+    fn grab_i8(&mut self) -> Option<i8> {
+        Some(self.grab_u8()? as i8)
     }
 
     impl_grab_num! {
@@ -56,56 +56,71 @@ pub(crate) trait Bytes {
         grab_f64_ne, f64::from_ne_bytes,
     }
 
-    fn grab_str(&mut self, n: usize) -> Result<&str, BadPos> {
-        core::str::from_utf8(self.forward(n)?).map_err(|_| BadPos)
+    fn grab_str(&mut self, n: usize) -> Option<&str> {
+        core::str::from_utf8(self.grab(n)?).ok()
     }
 
-    fn grab_until_nul(&mut self) -> Result<&[u8], BadPos> {
-        let len = self.as_ref().iter().grab_while(|x| **x != b'\0').count();
-        let out = self.forward(len + 1)?;
+    fn grab_while(&mut self, pred: impl Fn(&&u8) -> bool) -> Option<&[u8]> {
+        let len = self.as_ref().iter().take_while(pred).count();
+        let out = self.grab(len + 1)?;
         let out = &out[..len];
-        Ok(out)
+        Some(out)
     }
 
-    fn grab_str_until_nul(&mut self) -> Result<&str, BadPos> {
+    fn grab_until_nul(&mut self) -> Option<&[u8]> {
+        self.grab_while(|x| **x != b'\0')
+    }
+
+    fn grab_str_until_nul(&mut self) -> Option<&str> {
         let out = self.grab_until_nul()?;
-        let out = core::str::from_utf8(out).map_err(|_| BadPos)?;
-        Ok(out)
+        let out = core::str::from_utf8(out).ok()?;
+        Some(out)
     }
 
-    fn grab_with_u32_le_prefix(&mut self) -> Result<&[u8], BadPos> {
+    fn grab_with_u32_le_prefix(&mut self) -> Option<&[u8]> {
         let prefix = self.grab_u32_le()?;
-        let out = self.forward(prefix as usize)?;
-        Ok(out)
+        let out = self.grab(prefix as usize)?;
+        Some(out)
     }
 
-    fn grab_str_with_u32_le_prefix(&mut self) -> Result<&str, BadPos> {
+    fn grab_str_with_u32_le_prefix(&mut self) -> Option<&str> {
         let out = self.grab_with_u32_le_prefix()?;
-        let out = std::str::from_utf8(out).map_err(|_| BadPos)?;
-        Ok(out)
+        let out = std::str::from_utf8(out).ok()?;
+        Some(out)
     }
 }
 
 impl Bytes for &[u8] {
-    fn grab(&mut self, n: usize) -> Result<&[T], BadPos> {
+    fn grab(&mut self, n: usize) -> Option<&[u8]> {
         let len = self.len();
         let ptr = (*self).as_ptr();
 
         if n > len {
-            Err(BadPos)
+            None
         } else {
             unsafe {
                 let out = slice::from_raw_parts(ptr, n);
-                *self = slice::from_raw_parts(sptr.add(n), len - n);
-                Ok(out)
+                *self = slice::from_raw_parts(ptr.add(n), len - n);
+                Some(out)
             }
         }
     }
 }
 
 impl Bytes for &mut [u8] {
-    fn grab(&mut self, n: usize) -> Result<&[T], BadPos> {
-        self.as_ref().grab(n)
+    fn grab(&mut self, n: usize) -> Option<&[u8]> {
+        let len = self.len();
+        let ptr = (*self).as_mut_ptr();
+
+        if n > len {
+            None
+        } else {
+            unsafe {
+                let out = slice::from_raw_parts_mut(ptr, n);
+                *self = slice::from_raw_parts_mut(ptr.add(n), len - n);
+                Some(out)
+            }
+        }
     }
 }
 
@@ -119,14 +134,14 @@ macro_rules! impl_put_num {
     }
 }
 
-pub(crate) trait BytesMut {
-    fn put(&mut self, val: &[T]) -> Result<(), BadPos>;
+pub(crate) trait BytesMut: AsRef<[u8]> + AsMut<[u8]> {
+    fn put(&mut self, val: &[u8]);
 
-    fn put_u8(&mut self, val: u8) -> Result<(), BadPos> {
+    fn put_u8(&mut self, val: u8) {
         self.put(&[val])
     }
 
-    fn put_i8(&mut self, val: i8) -> Result<(), BadPos> {
+    fn put_i8(&mut self, val: i8) {
         self.put(&[val as u8])
     }
 
@@ -165,7 +180,7 @@ pub(crate) trait BytesMut {
 }
 
 impl BytesMut for &mut [u8] {
-    fn put(&mut self, val: &[T]) {
+    fn put(&mut self, val: &[u8]) {
         let n = val.len();
         let len = self.len();
         let ptr = (*self).as_mut_ptr();

@@ -1,6 +1,6 @@
 use std::io::{Read,Seek};
 
-use crate::{View,Bytes};
+use crate::Bytes;
 
 #[derive(Debug)]
 pub struct StbLev {
@@ -16,22 +16,22 @@ pub struct StbLev {
 }
 
 impl StbLev {
-    pub fn decode<T: Read + Seek>(mut source: T, _block_count: usize) -> Result<StbLev, BadPos> {
+    pub fn decode<T: Read + Seek>(mut source: T, _block_count: usize) -> Option<StbLev> {
         let mut data = Vec::new();
 
-        source.read_to_end(&mut data).or(Err(BadPos))?;
+        source.read_to_end(&mut data).ok()?;
 
         let mut data = &data[..];
 
-        let first_block = data.forward(2048)?;
+        let first_block = data.grab(2048)?;
 
         println!("{:?}", first_block);
 
-        let second_block_len = data.take_u32_le()? as usize;
-        let second_block = data.forward(second_block_len + (second_block_len % 2048))?.to_owned();
+        let second_block_len = data.grab_u32_le()? as usize;
+        let second_block = data.grab(second_block_len + (second_block_len % 2048))?.to_owned();
         let second_block = (&second_block[..second_block_len]).to_owned();
 
-        // let second_block = data.forward((second_block_len as usize).min(2048) - 4)?;
+        // let second_block = data.grab((second_block_len as usize).min(2048) - 4)?;
 
         println!("{:?}", second_block);
 
@@ -40,11 +40,11 @@ impl StbLev {
         let mut blocks = Vec::new();
 
         while blocks.len() < 19 {
-            let decompressed_size = data.take_u32_le()?;
-            let compressed_len = data.take_u32_le()?;
+            let decompressed_size = data.grab_u32_le()?;
+            let compressed_len = data.grab_u32_le()?;
             println!("{:?} {:?}", decompressed_size, compressed_len);
-            let compressed_data = data.forward(compressed_len as usize)?.to_owned();
-            data.forward(2040usize.saturating_sub(compressed_data.len()))?;
+            let compressed_data = data.grab(compressed_len as usize)?.to_owned();
+            data.grab(2040usize.saturating_sub(compressed_data.len()))?;
             // println!("{:?} {:?} {:x?}", decompressed_size, compressed_len, compressed_data);
             let decompressed = crate::lzo::decompress(&compressed_data, decompressed_size as usize);
             // println!("{:?} {:?} {:?}", decompressed_size, compressed_len, decompressed);
@@ -52,20 +52,20 @@ impl StbLev {
             blocks.push((decompressed_size, compressed_len, compressed_data));
         }
 
-        // source.seek(SeekFrom::Start(2048)).or(Err(BadPos))?;
-        // source.read_to_end(&mut data).or(Err(BadPos))?;
+        // source.seek(SeekFrom::Start(2048)).ok()?;
+        // source.read_to_end(&mut data).ok()?;
 
         // let mut data = &data[..];
 
-        // let offset = data.take_u32_le()?;
-        // let compressed_size = data.take_u32_le()?;
-        // let start_x = data.take_f32_le()?;
-        // let start_y = data.take_f32_le()?;
-        // let start_z = data.take_f32_le()?;
-        // let end_x = data.take_f32_le()?;
-        // let end_y = data.take_f32_le()?;
-        // let end_z = data.take_f32_le()?;
-        // let unknown_1 = data.take_u32_le()?;
+        // let offset = data.grab_u32_le()?;
+        // let compressed_size = data.grab_u32_le()?;
+        // let start_x = data.grab_f32_le()?;
+        // let start_y = data.grab_f32_le()?;
+        // let start_z = data.grab_f32_le()?;
+        // let end_x = data.grab_f32_le()?;
+        // let end_y = data.grab_f32_le()?;
+        // let end_z = data.grab_f32_le()?;
+        // let unknown_1 = data.grab_u32_le()?;
 
         // println!("offset {:?}", offset);
         // println!("compressed_size {:?}", compressed_size);
@@ -95,6 +95,6 @@ impl StbLev {
 
         // println!("{:?}", decompressed_data);
 
-        Err(BadPos)
+        None
     }
 }

@@ -4,7 +4,7 @@ pub use xml::*;
 
 use std::io::Read;
 
-use crate::{Bytes,BadPos};
+use crate::Bytes;
 
 pub struct NamesBin {
     pub unknown_1: u32,
@@ -19,22 +19,22 @@ pub struct Bin {
 }
 
 impl NamesBin {
-    pub fn decode(mut data: &[u8]) -> Result<NamesBin, BadPos> {
-        let unknown_1 = data.take_u32_le()?;
-        let unknown_2 = data.take_u32_le()?;
-        let names_count = data.take_u32_le()?;
-        let unknown_3 = data.take_u32_le()?;
-        let unknown_4 = data.take_u32_le()?;
+    pub fn decode(mut data: &[u8]) -> Option<NamesBin> {
+        let unknown_1 = data.grab_u32_le()?;
+        let unknown_2 = data.grab_u32_le()?;
+        let names_count = data.grab_u32_le()?;
+        let unknown_3 = data.grab_u32_le()?;
+        let unknown_4 = data.grab_u32_le()?;
 
         let mut names = Vec::new();
 
         while names.len() < names_count as usize {
-            let unknown_6 = data.take_u32_le()?;
-            let name = data.take_as_str_until_nul()?.to_owned();
+            let unknown_6 = data.grab_u32_le()?;
+            let name = data.grab_str_until_nul()?.to_owned();
             names.push((unknown_6,name));
         }
 
-        Ok(NamesBin {
+        Some(NamesBin {
             unknown_1,
             unknown_2,
             unknown_3,
@@ -45,20 +45,20 @@ impl NamesBin {
 }
 
 impl Bin {
-    pub fn decode(mut data: &[u8]) -> Result<Bin, BadPos> {
+    pub fn decode(mut data: &[u8]) -> Option<Bin> {
         let starting_len = data.len();
 
-        let unknown_1 = data.take_u8()?;
-        let unknown_2 = data.take_u32_le()?;
-        let unknown_3 = data.take_u32_le()?;
-        let entries_count = data.take_u32_le()?;
+        let unknown_1 = data.grab_u8()?;
+        let unknown_2 = data.grab_u32_le()?;
+        let unknown_3 = data.grab_u32_le()?;
+        let entries_count = data.grab_u32_le()?;
 
         let mut entries = Vec::new();
 
         while entries.len() < entries_count as usize {
-            let unknown_1 = data.take_u32_le()?;
-            let unknown_2 = data.take_u32_le()?;
-            let unknown_3 = data.take_u32_le()?;
+            let unknown_1 = data.grab_u32_le()?;
+            let unknown_2 = data.grab_u32_le()?;
+            let unknown_3 = data.grab_u32_le()?;
             if unknown_1 == 0xFFFF {
                 // println!("{:?} {:?} {:?}", unknown_1, unknown_2, unknown_3);
             }
@@ -67,16 +67,16 @@ impl Bin {
 
         // println!("{:?}", entries);
 
-        let chunks_count = data.take_u32_le()?;
-        let unknown_4 = data.take_u32_le()?;
+        let chunks_count = data.grab_u32_le()?;
+        let unknown_4 = data.grab_u32_le()?;
 
         // println!("{:?} {:?}", chunks_count, unknown_4);
 
         let mut chunks_table = Vec::new();
 
         while chunks_table.len() < chunks_count as usize {
-            let offset = data.take_u32_le()?;
-            let unknown_1 = data.take_u32_le()?;
+            let offset = data.grab_u32_le()?;
+            let unknown_1 = data.grab_u32_le()?;
             chunks_table.push((offset, unknown_1));
         }
 
@@ -102,13 +102,13 @@ impl Bin {
 
             // let mut chunk = Vec::new();
 
-            decompressor.read_to_end(&mut bytes).or(Err(BadPos))?;
+            decompressor.read_to_end(&mut bytes).ok()?;
 
             // println!("{:?}", &bytes[..1024]);
 
             break
 
-            // let initial_offset = data.take_u16_le()?;
+            // let initial_offset = data.grab_u16_le()?;
 
             // println!("{:?} {:?}", initial_offset, file_count);
 
@@ -119,7 +119,7 @@ impl Bin {
 
         // let stdout = std::io::stdout();
         // let mut handle = stdout.lock();
-        // handle.write_all(&bytes).or(Err(BadPos))?;
+        // handle.write_all(&bytes).ok()?;
 
         // for (offset, unknown_1) in chunks_table.iter() {
 
@@ -131,7 +131,7 @@ impl Bin {
 
         // println!("{:?}", chunks_table);
 
-        Ok(Bin {})
+        Some(Bin {})
     }
 }
 

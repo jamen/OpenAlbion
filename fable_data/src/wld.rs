@@ -47,7 +47,7 @@ pub struct WldRegion {
 }
 
 impl Wld {
-    // pub fn decode<T: BufRead + Seek>(mut source: T) -> Result<Wld, BadPos> {
+    // pub fn decode<T: BufRead + Seek>(mut source: T) -> Option<Wld> {
     //     for (ln, input) in source.lines().filter_map(|x| x.ok()).enumerate() {
     //         let first_key: String = input.chars().take_while(|x| *x != ' ').collect();
     //         let terminate =
@@ -56,7 +56,7 @@ impl Wld {
     //         // terminate
     //     }
 
-    //     Err(BadPos)
+    //     None
     // }
 }
 

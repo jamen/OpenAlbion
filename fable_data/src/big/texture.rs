@@ -1,6 +1,6 @@
 
 
-use crate::{View,Bytes,BadPos,BigTextureInfo};
+use crate::{Bytes,BigTextureInfo};
 
 #[derive(Debug)]
 pub struct Texture {
@@ -11,18 +11,18 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn decode(mut data: &[u8], info: &BigTextureInfo) -> Result<Self, BadPos> {
+    pub fn decode(mut data: &[u8], info: &BigTextureInfo) -> Option<Self> {
         // println!("{:#?}", info);
 
         let mut frames = Vec::new();
 
         if info.first_mipmap_compressed_size > 0 {
-            let size = info.first_mipmap_compressed_size & 0xffff0000 | data.take_u16_le()? as u32;
-            let size = if size as i16 == -1 { data.take_u32_le()? } else { size };
+            let size = info.first_mipmap_compressed_size & 0xffff0000 | data.grab_u16_le()? as u32;
+            let size = if size as i16 == -1 { data.grab_u32_le()? } else { size };
 
-            let first_mipmap_compressed = data.forward(size as usize)?;
+            let first_mipmap_compressed = data.grab(size as usize)?;
 
-            let data = crate::lzo::decompress(first_mipmap_compressed, info.first_mipmap_size as usize).or(Err(BadPos))?;
+            let data = crate::lzo::decompress(first_mipmap_compressed, info.first_mipmap_size as usize).ok()?;
 
             // let bc_format = match info.dxt_compression {
             //     31 => { bcndecode::BcnEncoding::Bc1 },
@@ -76,7 +76,7 @@ impl Texture {
         //     // }
         // }
 
-        Ok(Texture {
+        Some(Texture {
             width: info.width,
             height: info.height,
             dxt_compression: info.dxt_compression,

@@ -1,6 +1,6 @@
 use quick_xml::events::Event as XmlEvent;
 
-use crate::BadPos;
+// use crate::Bytes;
 
 pub struct DefXml {
     control_structures: Vec<DefXmlControl>,
@@ -39,12 +39,12 @@ pub struct DefXmlDefinitionType {
 }
 
 impl DefXml {
-    pub fn new() -> Result<DefXml, BadPos> {
+    pub fn new() -> Option<DefXml> {
         Self::decode(include_bytes!("./def.xml"))
     }
 
-    pub fn decode(mut data: &[u8]) -> Result<DefXml, BadPos> {
-        let data = std::str::from_utf8(data).or(Err(BadPos))?;
+    pub fn decode(mut data: &[u8]) -> Option<DefXml> {
+        let data = std::str::from_utf8(data).ok()?;
 
         let mut out = DefXml {
             control_structures: Vec::with_capacity(1024),
@@ -61,11 +61,11 @@ impl DefXml {
                 },
                 Ok(XmlEvent::Text(e)) => {
                     eprintln!("Found text at {}: {:?}", reader.buffer_position(), e);
-                    return Err(BadPos)
+                    return None
                 },
                 Err(e) => {
                     eprintln!("Error at {}: {:?}", reader.buffer_position(), e);
-                    return Err(BadPos)
+                    return None
                 },
                 Ok(XmlEvent::Eof) => {
                     break
@@ -74,6 +74,6 @@ impl DefXml {
             }
         }
 
-        Ok(out)
+        Some(out)
     }
 }

@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use crate::{View,Bytes,BadPos,BigMeshInfo};
+use crate::{Bytes,BigMeshInfo};
 
 /// Mesh format.
 ///
@@ -292,16 +292,16 @@ pub struct MeshVertex36 {
 }
 
 impl Mesh {
-    pub fn decode(mut data: &[u8], info: &BigMeshInfo) -> Result<Mesh, BadPos> {
+    pub fn decode(mut data: &[u8], info: &BigMeshInfo) -> Option<Mesh> {
         println!("{:#?}", info);
 
-        let name = data.take_as_str_until_nul()?.to_owned();
-        let has_skeleton = data.take_u8()? > 0;
-        let model_origin = (0..10).map(|_| data.take_f32_le()).collect::<Result<Vec<_>, _>>()?;
-        let helper_points_count = data.take_u16_le()?;
-        let helper_dummies_count = data.take_u16_le()?;
-        let helper_index_uncompressed = data.take_u32_le()?;
-        let padding = data.take_u16_le()?;
+        let name = data.grab_str_until_nul()?.to_owned();
+        let has_skeleton = data.grab_u8()? > 0;
+        let model_origin = (0..10).map(|_| data.grab_f32_le()).collect::<Option<Vec<_>>>()?;
+        let helper_points_count = data.grab_u16_le()?;
+        let helper_dummies_count = data.grab_u16_le()?;
+        let helper_index_uncompressed = data.grab_u32_le()?;
+        let padding = data.grab_u16_le()?;
 
         // println!("name {:?}", name);
         // println!("has_skeleton {:?}", has_skeleton);
@@ -314,15 +314,15 @@ impl Mesh {
         let mut helper_points = Vec::with_capacity(helper_points_count as usize);
 
         if helper_points_count > 0 {
-            let compressed = data.take_u16_le()?;
+            let compressed = data.grab_u16_le()?;
 
             let size = 20 * helper_points_count as usize;
             let data = Self::decode_semi_compressed(&mut data, compressed as usize, size)?;
             let mut data = &data[..];
 
             for _ in 0..helper_points_count {
-                let matrix = (0..4).map(|_| data.take_f32_le()).collect::<Result<Vec<_>, _>>()?;
-                let hierarchy = data.take_i32_le()?;
+                let matrix = (0..4).map(|_| data.grab_f32_le()).collect::<Option<Vec<_>>>()?;
+                let hierarchy = data.grab_i32_le()?;
                 helper_points.push(MeshHelperPoint { matrix, hierarchy });
             }
         }
@@ -332,15 +332,15 @@ impl Mesh {
         let mut helper_dummies = Vec::with_capacity(helper_dummies_count as usize);
 
         if helper_dummies_count > 0 {
-            let compressed = data.take_u16_le()?;
+            let compressed = data.grab_u16_le()?;
             // println!("helper_dummies compressed {:?}", compressed);
             let size = 56 * helper_dummies_count as usize;
             let data = Self::decode_semi_compressed(&mut data, compressed as usize, size)?;
             let mut data = &data[..];
 
             for _ in 0..helper_dummies_count {
-                let matrix = (0..13).map(|_| data.take_f32_le()).collect::<Result<Vec<_>, _>>()?;
-                let hierarchy = data.take_i32_le()?;
+                let matrix = (0..13).map(|_| data.grab_f32_le()).collect::<Option<Vec<_>>>()?;
+                let hierarchy = data.grab_i32_le()?;
                 helper_dummies.push(MeshHelperDummy { matrix, hierarchy });
             }
         }
@@ -348,19 +348,19 @@ impl Mesh {
         // println!("helper_dummies {:#?}", helper_dummies);
 
         let (helper_dummy_index, helper_point_index) = if helper_index_uncompressed > 0  {
-            let helper_index_compressed = data.take_u16_le()?;
+            let helper_index_compressed = data.grab_u16_le()?;
             // println!("helper_index_compressed {:?}", helper_index_compressed);
             let helper_index = Self::decode_semi_compressed(&mut data, helper_index_compressed as usize, helper_index_uncompressed as usize)?;
             let mut helper_index = &helper_index[..];
             // println!("helper_index {:X?}", helper_index);
 
-            let helper_point_index_size = helper_index.take_u16_le()?;
+            let helper_point_index_size = helper_index.grab_u16_le()?;
             // println!("helper_point_index_size {:?}", helper_point_index_size);
-            let helper_point_index = helper_index.forward(helper_point_index_size.saturating_sub(2) as usize)?.to_owned();
+            let helper_point_index = helper_index.grab(helper_point_index_size.saturating_sub(2) as usize)?.to_owned();
             // println!("helper_point_index {:X?}", helper_point_index);
             // let out = crate::lzo::decompress(&helper_point_index[1..], helper_point_index_size as usize).unwrap();
             // println!("helper_point_index {:?}", helper_point_index);
-            let helper_dummy_index = helper_index.forward(helper_index_uncompressed.saturating_sub(helper_point_index_size as u32) as usize)?.to_owned();
+            let helper_dummy_index = helper_index.grab(helper_index_uncompressed.saturating_sub(helper_point_index_size as u32) as usize)?.to_owned();
 
             // println!("helper_dummy_index {:?} {:X?}", helper_dummy_index.len(), helper_dummy_index);
 
@@ -370,14 +370,14 @@ impl Mesh {
         };
         // println!("helper_dummy_index {:?}", helper_dummy_index);
 
-        let material_count = data.take_u32_le()?;
-        let surface_count = data.take_u32_le()?;
-        let bone_count = data.take_u32_le()?;
+        let material_count = data.grab_u32_le()?;
+        let surface_count = data.grab_u32_le()?;
+        let bone_count = data.grab_u32_le()?;
         // NOTE: Are these values only present if bone_count > 0?
-        let bone_index_size = data.take_u32_le()?;
-        let unknown3 = data.take_u8()?;
-        let unknown4 = data.take_u16_le()?;
-        let unknown5 = data.take_u16_le()?;
+        let bone_index_size = data.grab_u32_le()?;
+        let unknown3 = data.grab_u8()?;
+        let unknown4 = data.grab_u16_le()?;
+        let unknown5 = data.grab_u16_le()?;
 
         // println!("material_count {:?}", material_count);
         // println!("surface_count {:?}", surface_count);
@@ -390,16 +390,16 @@ impl Mesh {
 
         if bone_count > 0 {
             if bone_index_size > 0 {
-                let compressed = data.take_u16_le()? as usize;
+                let compressed = data.grab_u16_le()? as usize;
                 let index_data = Self::decode_semi_compressed(&mut data, compressed, 2 * (bone_count - 1) as usize)?;
                 let mut index_data = &index_data[..];
                 let bone_index_reference = (0..bone_count - 1)
-                    .map(|_| index_data.take_u16_le())
-                    .collect::<Result<Vec<_>, _>>()?;
+                    .map(|_| index_data.grab_u16_le())
+                    .collect::<Option<Vec<_>>>()?;
 
                 // println!("bone_index_reference {:?}", bone_index_reference);
 
-                let bone_index_compressed = data.take_u16_le()? as usize;
+                let bone_index_compressed = data.grab_u16_le()? as usize;
 
                 // println!("bone_index_compressed {:?}", bone_index_compressed);
 
@@ -408,58 +408,58 @@ impl Mesh {
                 // println!("bone_index {:?}", bone_index);
             }
 
-            // let compressed_size = data.take_u16_le()?;
+            // let compressed_size = data.grab_u16_le()?;
 
-            // let _ = data.take_u16_le()?;
+            // let _ = data.grab_u16_le()?;
 
             // println!("compressed_size {:?}", compressed_size);
 
-            let bones_1_compressed = data.take_u16_le()? as usize;
+            let bones_1_compressed = data.grab_u16_le()? as usize;
             // println!("bones_1_compressed {:?}", bones_1_compressed);
             let bones_1_size = 60 * bone_count as usize;
             let bones_1_data = Self::decode_semi_compressed(&mut data, bones_1_compressed, bones_1_size)?;
             let mut bones_1_data = &bones_1_data[..];
-            let bones_1 = (0..bone_count).map(|_| Self::decode_bone_1(&mut bones_1_data)).collect::<Result<Vec<_>, _>>()?;
+            let bones_1 = (0..bone_count).map(|_| Self::decode_bone_1(&mut bones_1_data)).collect::<Option<Vec<_>>>()?;
             // println!("bones_1 {:?}", bones_1);
 
-            let bones_2_compressed = data.take_u16_le()? as usize;
+            let bones_2_compressed = data.grab_u16_le()? as usize;
             // println!("bones_2_compressed {:?}", bones_2_compressed);
             let bones_2_size = 48 * bone_count as usize;
             let bones_2_data = Self::decode_semi_compressed(&mut data, bones_2_compressed, bones_2_size)?;
             let mut bones_2_data = &bones_2_data[..];
-            let bones_2 = (0..bone_count).map(|_| Self::decode_bone_2(&mut bones_2_data)).collect::<Result<Vec<_>, _>>()?;
+            let bones_2 = (0..bone_count).map(|_| Self::decode_bone_2(&mut bones_2_data)).collect::<Option<Vec<_>>>()?;
             // println!("bones_2 {:?}", bones_2);
 
-            let bones_3_compressed = data.take_u16_le()? as usize;
+            let bones_3_compressed = data.grab_u16_le()? as usize;
             // println!("bones_3_compressed {:?}", bones_3_compressed);
             let bones_3_size = 64 * bone_count as usize;
             let bones_3_data = Self::decode_semi_compressed(&mut data, bones_3_compressed, bones_3_size)?;
             let mut bones_3_data = &bones_3_data[..];
-            let bones_3 = (0..bone_count).map(|_| Self::decode_bone_3(&mut bones_3_data)).collect::<Result<Vec<_>, _>>()?;
+            let bones_3 = (0..bone_count).map(|_| Self::decode_bone_3(&mut bones_3_data)).collect::<Option<Vec<_>>>()?;
             // println!("bones_3 {:?}", bones_3);
         }
 
 
-        let transform_matrix = (0..12).map(|_| data.take_f32_le()).collect::<Result<Vec<_>, _>>()?;
+        let transform_matrix = (0..12).map(|_| data.grab_f32_le()).collect::<Option<Vec<_>>>()?;
 
         // println!("{:?}", transform_matrix);
 
         let mut materials = Vec::with_capacity(material_count as usize);
 
         for _ in 0..material_count as usize {
-            let id = data.take_u32_le()?;
-            let name = data.take_as_str_until_nul()?.to_owned();
-            let padding = data.take_u32_le()?;
-            let base_texture_id = data.take_u32_le()?;
-            let bumpmap_texture_id = data.take_u32_le()?;
-            let reflect_texture_id = data.take_u32_le()?;
-            let unknown_1 = data.take_u32_le()?;
-            let max_texture_layers = data.take_u32_le()?;
-            let glow_strength = data.take_u32_le()?;
-            let unknown_2 = data.take_u8()?;
-            let alpha_enabled = data.take_u8()? > 0;
-            let unknown_3 = data.take_u8()?;
-            let ignored = data.take_u16_le()?; // ?
+            let id = data.grab_u32_le()?;
+            let name = data.grab_str_until_nul()?.to_owned();
+            let padding = data.grab_u32_le()?;
+            let base_texture_id = data.grab_u32_le()?;
+            let bumpmap_texture_id = data.grab_u32_le()?;
+            let reflect_texture_id = data.grab_u32_le()?;
+            let unknown_1 = data.grab_u32_le()?;
+            let max_texture_layers = data.grab_u32_le()?;
+            let glow_strength = data.grab_u32_le()?;
+            let unknown_2 = data.grab_u8()?;
+            let alpha_enabled = data.grab_u8()? > 0;
+            let unknown_3 = data.grab_u8()?;
+            let ignored = data.grab_u16_le()?; // ?
 
             materials.push(MeshMaterial {
                 id,
@@ -489,31 +489,31 @@ impl Mesh {
             //     let mut data = data.clone();
                 // println!("{:02X?}", &data[..32]);
 
-                let hierarchy = data.take_u32_le()?;
-                let destroyable_mesh_levels = data.take_u32_le()?;
-                let floats_1 = (0..5).map(|_| data.take_f32_le()).collect::<Result<Vec<_>, _>>()?;
+                let hierarchy = data.grab_u32_le()?;
+                let destroyable_mesh_levels = data.grab_u32_le()?;
+                let floats_1 = (0..5).map(|_| data.grab_f32_le()).collect::<Option<Vec<_>>>()?;
                 // println!("floats_1 {:?}", floats_1);
-                let n_face_vertex_indices = data.take_u32_le()?;
+                let n_face_vertex_indices = data.grab_u32_le()?;
                 // println!("n_face_vertex_indices {:?}", n_face_vertex_indices);
-                let n_face_vertex_indices_bone_index = data.take_u32_le()?;
+                let n_face_vertex_indices_bone_index = data.grab_u32_le()?;
                 // println!("n_face_vertex_indices_bone_index {:?}", n_face_vertex_indices_bone_index);
-                let n_verts = data.take_u32_le()?;
-                let n_faces = data.take_u32_le()?;
-                let n_source_verts = data.take_u32_le()?;
-                let unknown_1 = data.take_u32_le()?;
-                let unknown_2 = data.take_u32_le()?;
-                let unknown_3 = data.take_u32_le()?;
-                let face_indices = data.forward(15 * n_face_vertex_indices as usize)?.to_owned();
-                // let face_indices = (0..n_face_vertex_indices).map(|_| data, 15).map(|x| x.to_owned())).collect::<Result<Vec<_>.forward(_>>()?;
+                let n_verts = data.grab_u32_le()?;
+                let n_faces = data.grab_u32_le()?;
+                let n_source_verts = data.grab_u32_le()?;
+                let unknown_1 = data.grab_u32_le()?;
+                let unknown_2 = data.grab_u32_le()?;
+                let unknown_3 = data.grab_u32_le()?;
+                let face_indices = data.grab(15 * n_face_vertex_indices as usize)?.to_owned();
+                // let face_indices = (0..n_face_vertex_indices).map(|_| data, 15).map(|x| x.to_owned())).collect::<Option<Vec<_>ab(_>>()?;
                 // println!("face_indices {:?}", face_indices);
                 // 28 looks best for MESH_RIVAL_HERO_APPRENTICE_FEMALE and MESH_TROLL_EARTH_01 (3)
                 // 22 looks best for MESH_STAG_BEETLE (2)
-                let face_bone_indices = (0..n_face_vertex_indices_bone_index).map(|_| Self::decode_face_bone_index(&mut data)).collect::<Result<Vec<_>, _>>()?;
+                let face_bone_indices = (0..n_face_vertex_indices_bone_index).map(|_| Self::decode_face_bone_index(&mut data)).collect::<Option<Vec<_>>>()?;
                 // println!("face_bone_indices {:?}", face_bone_indices);
-                let floats_2 = (0..8).map(|_| data.take_f32_le()).collect::<Result<Vec<_>, _>>()?;
+                let floats_2 = (0..8).map(|_| data.grab_f32_le()).collect::<Option<Vec<_>>>()?;
                 // println!("floats_2 {:?}", floats_2);
-                let s_vert = data.take_u32_le()?;
-                let padding = data.take_u32_le()?;
+                let s_vert = data.grab_u32_le()?;
+                let padding = data.grab_u32_le()?;
                 // println!("padding {:?}", padding);
 
                 // if unknown_2 > 1 && unknown_3 == 0 && s_vert > 20 {
@@ -535,11 +535,11 @@ impl Mesh {
             // MESH_HERO_ASSASSIN_SHIRT_01
             // MESH_HERO_FOLDED_DEMONIC_HELM_GOOD
 
-            // let vertex_buffer = data.forward(n_verts as usize * s_vert as usize)?.to_owned();
-            let vertex_data_compressed_len = data.take_u16_le()?;
+            // let vertex_buffer = data.grab(n_verts as usize * s_vert as usize)?.to_owned();
+            let vertex_data_compressed_len = data.grab_u16_le()?;
 
             let vertex_data_compressed_len = if vertex_data_compressed_len == 0xFFFF {
-                data.take_u32_le()? as usize
+                data.grab_u32_le()? as usize
             } else {
                 vertex_data_compressed_len as usize
             };
@@ -556,10 +556,10 @@ impl Mesh {
 
             // println!("vertex_data {} {:02X?}", vertex_data.len(), vertex_data.iter().map(|x| format!("{:02X?}", x)).collect::<Vec<_>>().join(" "));
 
-            let index_data_compressed_len = data.take_u16_le()?;
+            let index_data_compressed_len = data.grab_u16_le()?;
 
             let index_data_compressed_len = if index_data_compressed_len == 0xFFFF {
-                data.take_u32_le()? as usize
+                data.grab_u32_le()? as usize
             } else {
                 index_data_compressed_len as usize
             };
@@ -583,17 +583,17 @@ impl Mesh {
 
             {
                 for i in 0..n_verts {
-                    let vert = vertex_data.forward(s_vert as usize)?.to_owned();
+                    let vert = vertex_data.grab(s_vert as usize)?.to_owned();
                     let mut vert = &vert[..];
 
                     match s_vert {
                         36 => {
-                            let x1 = vert.take_f32_le()?;
-                            let y1 = vert.take_f32_le()?;
-                            let z1 = vert.take_f32_le()?;
+                            let x1 = vert.grab_f32_le()?;
+                            let y1 = vert.grab_f32_le()?;
+                            let z1 = vert.grab_f32_le()?;
 
-                            let u = vert.take_f32_le()?;
-                            let v = vert.take_f32_le()?;
+                            let u = vert.grab_f32_le()?;
+                            let v = vert.grab_f32_le()?;
 
                             // let rest_chunks = rest.chunks(4).collect::<Vec<_>>();
 
@@ -604,31 +604,31 @@ impl Mesh {
                             // println!("v {:?} {:?} {:?} {:?} {:?}", x2, y2, z2, w2, id);
                         },
                         28 => {
-                            let x1 = vert.take_f32_le()?;
-                            let y1 = vert.take_f32_le()?;
-                            let z1 = vert.take_f32_le()?;
+                            let x1 = vert.grab_f32_le()?;
+                            let y1 = vert.grab_f32_le()?;
+                            let z1 = vert.grab_f32_le()?;
 
-                            // let a = vert.take_u16_le()?;
-                            // let a = vert.take_u16_le()?;
-                            let u = vert.take_f32_le()?;
-                            let v = vert.take_f32_le()?;
+                            // let a = vert.grab_u16_le()?;
+                            // let a = vert.grab_u16_le()?;
+                            let u = vert.grab_f32_le()?;
+                            let v = vert.grab_f32_le()?;
 
-                            // let f1 = vert.take_f32_le()?;
-                            // let f2 = vert.take_f32_le()?;
+                            // let f1 = vert.grab_f32_le()?;
+                            // let f2 = vert.grab_f32_le()?;
 
                             println!("v {:?} {:?} {:?}", x1, y1, z1);
                             // println!("v {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:02X?}", x1, y1, z1, a, u, v, f1, vert);
                         },
                         20 => {
-                            // let _ = vert.take_u16_le()?;
-                            // let _ = vert.take_u16_le()?;
-                            // let _ = vert.take_u16_le()?;
-                            // let _ = vert.take_u16_le()?;
-                            // let x1 = vert.take_f32_le()?;
+                            // let _ = vert.grab_u16_le()?;
+                            // let _ = vert.grab_u16_le()?;
+                            // let _ = vert.grab_u16_le()?;
+                            // let _ = vert.grab_u16_le()?;
+                            // let x1 = vert.grab_f32_le()?;
 
-                            // let y1 = vert.take_f32_le()?;
+                            // let y1 = vert.grab_f32_le()?;
 
-                            // let z1 = vert.take_f32_le()?;
+                            // let z1 = vert.grab_f32_le()?;
 
                             // println!("v {:?} {:?} {:?}", x1, y1, z1);
                         }
@@ -642,14 +642,14 @@ impl Mesh {
 
                 let mut indices = &index_data[..];
 
-                // let _ = indices.forward(16);
+                // let _ = indices.grab(16);
 
                 for i in 0 .. (n_source_verts) / 3 {
                     // println!("{:?}, {:?}, {:02X?}", n_source_verts, i, indices.get(..12));
-                    let v1 = indices.take_u16_le()?;
-                    let v2 = indices.take_u16_le()?;
-                    let v3 = indices.take_u16_le()?;
-                    // let unknown = indices.forward(3);
+                    let v1 = indices.grab_u16_le()?;
+                    let v2 = indices.grab_u16_le()?;
+                    let v3 = indices.grab_u16_le()?;
+                    // let unknown = indices.grab(3);
                     println!("f {:?} {:?} {:?}", v1 + 1, v2 + 1, v3 + 1);
                     // println!();
                 }
@@ -660,7 +660,7 @@ impl Mesh {
 
             //     let mut indices = Vec::new();
 
-            //     while let Ok(x) = index_data.take_u16_le() {
+            //     while let Some(x) = index_data.grab_u16_le() {
             //         indices.push(x);
             //     }
 
@@ -695,7 +695,7 @@ impl Mesh {
 
         // println!("{:#?}", sub_meshes);
 
-        Ok(Mesh {
+        Some(Mesh {
             name,
             has_skeleton,
             model_origin,
@@ -715,18 +715,18 @@ impl Mesh {
         })
     }
 
-    pub fn decode_semi_compressed(data: &mut &[u8], compressed: usize, mut size: usize) -> Result<Vec<u8>, BadPos> {
+    pub fn decode_semi_compressed(data: &mut &[u8], compressed: usize, mut size: usize) -> Option<Vec<u8>> {
         // println!("compression output len {:?}", size);
 
         let mut uncompressed_data = Vec::with_capacity(size);
 
         if compressed > 0 {
-            let input = data.forward(compressed as usize)?;
+            let input = data.grab(compressed as usize)?;
             let out = crate::lzo::decompress(&input, size);
             let out = match out {
                 Err(e) => {
                     // println!("decompress error {:?}", e);
-                    return Err(BadPos)
+                    return None
                 },
                 Ok(r) => r,
             };
@@ -739,18 +739,18 @@ impl Mesh {
         }
 
         if size > 0 {
-            uncompressed_data.extend(data.forward(size)?);
+            uncompressed_data.extend(data.grab(size)?);
         }
 
-        Ok(uncompressed_data)
+        Some(uncompressed_data)
     }
 
-    fn decode_bone_1(data: &mut &[u8]) -> Result<MeshBone1, BadPos> {
-        let index = data.take_i32_le()?;
-        let parent = data.take_i32_le()?;
-        let child_count = data.take_i32_le()?;
-        let matrix = (0..12).map(|_| data.take_f32_le()).collect::<Result<Vec<_>, _>>()?;
-        Ok(MeshBone1 {
+    fn decode_bone_1(data: &mut &[u8]) -> Option<MeshBone1> {
+        let index = data.grab_i32_le()?;
+        let parent = data.grab_i32_le()?;
+        let child_count = data.grab_i32_le()?;
+        let matrix = (0..12).map(|_| data.grab_f32_le()).collect::<Option<Vec<_>>>()?;
+        Some(MeshBone1 {
             index,
             parent,
             child_count,
@@ -758,37 +758,37 @@ impl Mesh {
         })
     }
 
-    fn decode_bone_2(data: &mut &[u8]) -> Result<MeshBone2, BadPos> {
-        let matrix = (0..12).map(|_| data.take_f32_le()).collect::<Result<Vec<_>, _>>()?;
-        Ok(MeshBone2 {
+    fn decode_bone_2(data: &mut &[u8]) -> Option<MeshBone2> {
+        let matrix = (0..12).map(|_| data.grab_f32_le()).collect::<Option<Vec<_>>>()?;
+        Some(MeshBone2 {
             matrix,
         })
     }
 
-    fn decode_bone_3(data: &mut &[u8]) -> Result<MeshBone3, BadPos> {
-        let matrix = (0..16).map(|_| data.take_f32_le()).collect::<Result<Vec<_>, _>>()?;
-        Ok(MeshBone3 {
+    fn decode_bone_3(data: &mut &[u8]) -> Option<MeshBone3> {
+        let matrix = (0..16).map(|_| data.grab_f32_le()).collect::<Option<Vec<_>>>()?;
+        Some(MeshBone3 {
             matrix,
         })
     }
 
-    fn decode_face_bone_index(data: &mut &[u8]) -> Result<MeshFaceBoneIndex, BadPos> {
-        let part_1 = data.forward(18)?.to_owned();
-        let part_2_length = data.take_u8()?;
-        let part_2 = data.forward(part_2_length as usize)?.to_owned();
-        Ok(MeshFaceBoneIndex {
+    fn decode_face_bone_index(data: &mut &[u8]) -> Option<MeshFaceBoneIndex> {
+        let part_1 = data.grab(18)?.to_owned();
+        let part_2_length = data.grab_u8()?;
+        let part_2 = data.grab(part_2_length as usize)?.to_owned();
+        Some(MeshFaceBoneIndex {
             part_1,
             part_2_length,
             part_2,
         })
     }
 
-    fn decode_vertex_1(data: &mut &[u8]) -> Result<MeshVertex1, BadPos> {
-        let unknown_1 = data.take_f32_le()?;
-        let unknown_2 = data.take_f32_le()?;
-        let unknown_3 = data.take_u16_le()?;
-        let unknown_4 = data.take_u16_le()?;
-        Ok(MeshVertex1 {
+    fn decode_vertex_1(data: &mut &[u8]) -> Option<MeshVertex1> {
+        let unknown_1 = data.grab_f32_le()?;
+        let unknown_2 = data.grab_f32_le()?;
+        let unknown_3 = data.grab_u16_le()?;
+        let unknown_4 = data.grab_u16_le()?;
+        Some(MeshVertex1 {
             unknown_1,
             unknown_2,
             unknown_3,
@@ -796,14 +796,14 @@ impl Mesh {
         })
     }
 
-    fn decode_vertex_2(data: &mut &[u8]) -> Result<MeshVertex2, BadPos> {
-        let unknown = data.forward(20)?.to_owned();
+    fn decode_vertex_2(data: &mut &[u8]) -> Option<MeshVertex2> {
+        let unknown = data.grab(20)?.to_owned();
 
-        // let unknown_1 = data.take_f32_le()?;
-        // let unknown_2 = data.take_f32_le()?;
-        // let unknown_3 = data.take_u16_le()?;
-        // let unknown_4 = data.take_u16_le()?;
-        Ok(MeshVertex2 {
+        // let unknown_1 = data.grab_f32_le()?;
+        // let unknown_2 = data.grab_f32_le()?;
+        // let unknown_3 = data.grab_u16_le()?;
+        // let unknown_4 = data.grab_u16_le()?;
+        Some(MeshVertex2 {
             unknown
         })
     }

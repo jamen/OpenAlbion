@@ -1,4 +1,4 @@
-// pub fn take_key(data: &mut &[u8]) -> Result<&str, BadPos> {
+// pub fn take_key(data: &mut &[u8]) -> Option<&str> {
 //     data.iter().take_while(||)
 // }
 

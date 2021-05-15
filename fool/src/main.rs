@@ -249,30 +249,30 @@ fn big(mut args: Arguments, path: PathBuf) {
     //             // println!("{}", text);
     //             // print!("\"{}\",", text);
 
-    //             let len = entry_data.take_u32_le().unwrap();
-    //             let script = entry_data.take_as_str(len as usize).unwrap().to_owned();
+    //             let len = entry_data.grab_u32_le().unwrap();
+    //             let script = entry_data.grab_str(len as usize).unwrap().to_owned();
     //             let script = script.replace("\"", "\"\"");
 
     //             // print!("\"{}\",", script);
 
-    //             let len = entry_data.take_u32_le().unwrap();
-    //             let target = entry_data.take_as_str(len as usize).unwrap().to_owned();
+    //             let len = entry_data.grab_u32_le().unwrap();
+    //             let target = entry_data.grab_str(len as usize).unwrap().to_owned();
     //             let target = target.replace("\"", "\"\"");
 
     //             // print!("\"{}\",", target);
 
-    //             let len = entry_data.take_u32_le().unwrap();
-    //             let id = entry_data.take_as_str(len as usize).unwrap().to_owned();
+    //             let len = entry_data.grab_u32_le().unwrap();
+    //             let id = entry_data.grab_str(len as usize).unwrap().to_owned();
     //             let id = id.replace("\"", "\"\"");
 
     //             // print!("\"{}\",", id);
 
-    //             let actions_count = entry_data.take_u32_le().unwrap();
+    //             let actions_count = entry_data.grab_u32_le().unwrap();
     //             let mut actions = Vec::new();
 
     //             for _ in 0..actions_count {
-    //                 let id = entry_data.take_u32_le().unwrap();
-    //                 let name = entry_data.take_as_str_until_nul().unwrap().to_owned();
+    //                 let id = entry_data.grab_u32_le().unwrap();
+    //                 let name = entry_data.grab_str_until_nul().unwrap().to_owned();
     //                 actions.push((id, name));
     //             }
 
@@ -280,7 +280,7 @@ fn big(mut args: Arguments, path: PathBuf) {
 
     //             // print!("\"{}\"\n", unknown_1);
 
-    //             // let sound = entry_data.take_as_str(len as usize).unwrap().to_owned();
+    //             // let sound = entry_data.grab_str(len as usize).unwrap().to_owned();
     //             // let sound = sound.replace("\"", "\"\"");
 
     //             // println!("\"{:?}\", \"{:?}\", \"{:?}\", \"{:?}\", \"{:?}\", \"{:?}\"", text,
