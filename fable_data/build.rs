@@ -4,4 +4,6 @@ fn main() {
         .include("./minilzo")
         .include("./minilzo/include/lzo")
         .compile("minilzo");
+
+    lalrpop::process_root().unwrap();
 }
