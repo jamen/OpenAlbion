@@ -9,6 +9,7 @@ pub use lev::*;
 pub use tng::*;
 
 use std::io::{Read,Seek,SeekFrom};
+use std::collections::HashMap;
 
 use crate::Bytes;
 
@@ -32,16 +33,30 @@ pub struct WadEntry {
     pub data_start: u32,
     pub unknown_3: u32,
     pub path: String,
-    pub unknown_4: String,
+    pub unknown_4: Vec<u8>,
     pub created: WadTimestamp,
     pub accessed: WadTimestamp,
-    pub modified: WadTimestamp,
+    pub modified: WadTimestampShort,
 }
 
 #[derive(Debug)]
-pub enum WadTimestamp {
-    Normal { year: u32, month: u32, day: u32, hour: u32, minute: u32, second: u32, millisecond: u32 },
-    Short { year: u32, month: u32, day: u32, hour: u32, minute: u32 },
+pub struct WadTimestamp {
+    year: u32,
+    month: u32,
+    day: u32,
+    hour: u32,
+    minute: u32,
+    second: u32,
+    millisecond: u32
+}
+
+#[derive(Debug)]
+pub struct WadTimestampShort {
+    year: u32,
+    month: u32,
+    day: u32,
+    hour: u32,
+    minute: u32,
 }
 
 impl Wad {
@@ -74,7 +89,7 @@ impl Wad {
             let data_start = entries_data.grab_u32_le()?;
             let unknown_3 = entries_data.grab_u32_le()?;
             let path = entries_data.grab_str_with_u32_le_prefix()?.to_owned();
-            let unknown_4 = entries_data.grab_str(16)?.to_owned();
+            let unknown_4 = entries_data.grab(16)?.to_owned();
             let created = Self::decode_timestamp(&mut entries_data)?;
             let accessed = Self::decode_timestamp(&mut entries_data)?;
             let modified = Self::decode_timestamp_short(&mut entries_data)?;
@@ -106,7 +121,7 @@ impl Wad {
     }
 
     fn decode_timestamp(data: &mut &[u8]) -> Option<WadTimestamp> {
-        Some(WadTimestamp::Normal {
+        Some(WadTimestamp {
             year: data.grab_u32_le()?,
             month: data.grab_u32_le()?,
             day: data.grab_u32_le()?,
@@ -117,14 +132,20 @@ impl Wad {
         })
     }
 
-    fn decode_timestamp_short(data: &mut &[u8]) -> Option<WadTimestamp> {
-        Some(WadTimestamp::Short {
+    fn decode_timestamp_short(data: &mut &[u8]) -> Option<WadTimestampShort> {
+        Some(WadTimestampShort {
             year: data.grab_u32_le()?,
             month: data.grab_u32_le()?,
             day: data.grab_u32_le()?,
             hour: data.grab_u32_le()?,
             minute: data.grab_u32_le()?,
         })
+    }
+
+    pub fn index_by_path(&self) -> HashMap<&String, &WadEntry> {
+        let mut index = HashMap::with_capacity(self.entries.len());
+        index.extend(self.entries.iter().map(|x| (&x.path, x)));
+        index
     }
 }
 

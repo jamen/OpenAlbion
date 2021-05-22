@@ -1,3 +1,4 @@
+use std::mem;
 use std::io::Read;
 
 use crate::{Bytes,BigMeshInfo};
@@ -258,20 +259,21 @@ pub struct MeshSubMesh {
     hierarchy: u32,
     destroyable_mesh_levels: u32,
     floats_1: Vec<f32>,
-    n_face_vertex_indices: u32,
-    n_face_vertex_indices_bone_index: u32,
-    n_verts: u32,
-    n_faces: u32,
-    n_source_verts: u32,
+    face_vertex_indices_count: u32,
+    face_vertex_indices_bone_index_count: u32,
+    vert_count: u32,
+    face_count: u32,
+    index_count: u32,
     unknown_1: u32,
     unknown_2: u32,
     unknown_3: u32,
     face_indices: Vec<u8>,
     face_bone_indices: Vec<MeshFaceBoneIndex>,
     floats_2: Vec<f32>,
-    s_vert: u32,
+    vert_size: u32,
     padding: u32,
-    // vertex_buffer: Vec<u8>,
+    vertex_buffer: Vec<u8>,
+    index_buffer: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -291,6 +293,15 @@ pub struct MeshVertex36 {
 
 }
 
+// pub struct PackedVec3 (u32);
+
+// impl PackedVec3 {
+//     fn new(v: glam::Vec3) {
+//         let v = v.as_u32();
+//         (( | ()) << 11 | v.x * 1023.0f32) & 0x7ff
+//     }
+// }
+
 impl Mesh {
     pub fn decode(mut data: &[u8], info: &BigMeshInfo) -> Option<Mesh> {
         println!("{:#?}", info);
@@ -303,21 +314,11 @@ impl Mesh {
         let helper_index_uncompressed = data.grab_u32_le()?;
         let padding = data.grab_u16_le()?;
 
-        // println!("name {:?}", name);
-        // println!("has_skeleton {:?}", has_skeleton);
-        // println!("model_origin {:?}", model_origin);
-        // println!("helper_points_count {:?}", helper_points_count);
-        // println!("helper_dummies_count {:?}", helper_dummies_count);
-        // println!("helper_index_uncompressed {:?}", helper_index_uncompressed);
-        // println!("padding {:?}", padding);
-
         let mut helper_points = Vec::with_capacity(helper_points_count as usize);
 
         if helper_points_count > 0 {
-            let compressed = data.grab_u16_le()?;
+            let data = Self::decode_semi_compressed(&mut data, 20 * helper_points_count as usize)?;
 
-            let size = 20 * helper_points_count as usize;
-            let data = Self::decode_semi_compressed(&mut data, compressed as usize, size)?;
             let mut data = &data[..];
 
             for _ in 0..helper_points_count {
@@ -327,15 +328,11 @@ impl Mesh {
             }
         }
 
-        // println!("helper_points {:#?}", helper_points);
-
         let mut helper_dummies = Vec::with_capacity(helper_dummies_count as usize);
 
         if helper_dummies_count > 0 {
-            let compressed = data.grab_u16_le()?;
-            // println!("helper_dummies compressed {:?}", compressed);
-            let size = 56 * helper_dummies_count as usize;
-            let data = Self::decode_semi_compressed(&mut data, compressed as usize, size)?;
+            let data = Self::decode_semi_compressed(&mut data, 56 * helper_dummies_count as usize)?;
+
             let mut data = &data[..];
 
             for _ in 0..helper_dummies_count {
@@ -345,104 +342,64 @@ impl Mesh {
             }
         }
 
-        // println!("helper_dummies {:#?}", helper_dummies);
-
         let (helper_dummy_index, helper_point_index) = if helper_index_uncompressed > 0  {
-            let helper_index_compressed = data.grab_u16_le()?;
-            // println!("helper_index_compressed {:?}", helper_index_compressed);
-            let helper_index = Self::decode_semi_compressed(&mut data, helper_index_compressed as usize, helper_index_uncompressed as usize)?;
+            let helper_index = Self::decode_semi_compressed(&mut data, helper_index_uncompressed as usize)?;
+
             let mut helper_index = &helper_index[..];
-            // println!("helper_index {:X?}", helper_index);
 
             let helper_point_index_size = helper_index.grab_u16_le()?;
-            // println!("helper_point_index_size {:?}", helper_point_index_size);
-            let helper_point_index = helper_index.grab(helper_point_index_size.saturating_sub(2) as usize)?.to_owned();
-            // println!("helper_point_index {:X?}", helper_point_index);
-            // let out = crate::lzo::decompress(&helper_point_index[1..], helper_point_index_size as usize).unwrap();
-            // println!("helper_point_index {:?}", helper_point_index);
-            let helper_dummy_index = helper_index.grab(helper_index_uncompressed.saturating_sub(helper_point_index_size as u32) as usize)?.to_owned();
 
-            // println!("helper_dummy_index {:?} {:X?}", helper_dummy_index.len(), helper_dummy_index);
+            let helper_point_index = helper_index.grab(helper_point_index_size.saturating_sub(2) as usize)?.to_owned();
+            let helper_dummy_index = helper_index.grab(helper_index_uncompressed.saturating_sub(helper_point_index_size as u32) as usize)?.to_owned();
 
             (helper_point_index, helper_dummy_index)
         } else {
             (Vec::new(), Vec::new())
         };
-        // println!("helper_dummy_index {:?}", helper_dummy_index);
 
         let material_count = data.grab_u32_le()?;
         let surface_count = data.grab_u32_le()?;
         let bone_count = data.grab_u32_le()?;
-        // NOTE: Are these values only present if bone_count > 0?
         let bone_index_size = data.grab_u32_le()?;
         let unknown3 = data.grab_u8()?;
         let unknown4 = data.grab_u16_le()?;
         let unknown5 = data.grab_u16_le()?;
 
-        // println!("material_count {:?}", material_count);
-        // println!("surface_count {:?}", surface_count);
-        // println!("bone_count {:?}", bone_count);
-        // println!("data now {:X?}", &data[..32]);
-        // println!("bone_index_size {:?}", bone_index_size);
-        // println!("unknown3 {:?}", unknown3);
-        // println!("unknown4 {:?}", unknown4);
-        // println!("unknown5 {:?}", unknown5);
+        println!("material_count {:?}", material_count);
+        println!("surface_count {:?}", surface_count);
+        println!("bone_count {:?}", bone_count);
+        println!("data now {:X?}", &data[..32]);
+        println!("bone_index_size {:?}", bone_index_size);
+        println!("unknown3 {:?}", unknown3);
+        println!("unknown4 {:?}", unknown4);
+        println!("unknown5 {:?}", unknown5);
 
         if bone_count > 0 {
             if bone_index_size > 0 {
-                let compressed = data.grab_u16_le()? as usize;
-                let index_data = Self::decode_semi_compressed(&mut data, compressed, 2 * (bone_count - 1) as usize)?;
+                let index_data = Self::decode_semi_compressed(&mut data, 2 * (bone_count - 1) as usize)?;
+
                 let mut index_data = &index_data[..];
+
                 let bone_index_reference = (0..bone_count - 1)
                     .map(|_| index_data.grab_u16_le())
                     .collect::<Option<Vec<_>>>()?;
 
-                // println!("bone_index_reference {:?}", bone_index_reference);
-
-                let bone_index_compressed = data.grab_u16_le()? as usize;
-
-                // println!("bone_index_compressed {:?}", bone_index_compressed);
-
-                let bone_index = Self::decode_semi_compressed(&mut data, bone_index_compressed, bone_index_size as usize)?;
-
-                // println!("bone_index {:?}", bone_index);
+                let bone_index = Self::decode_semi_compressed(&mut data, bone_index_size as usize)?;
             }
 
-            // let compressed_size = data.grab_u16_le()?;
-
-            // let _ = data.grab_u16_le()?;
-
-            // println!("compressed_size {:?}", compressed_size);
-
-            let bones_1_compressed = data.grab_u16_le()? as usize;
-            // println!("bones_1_compressed {:?}", bones_1_compressed);
-            let bones_1_size = 60 * bone_count as usize;
-            let bones_1_data = Self::decode_semi_compressed(&mut data, bones_1_compressed, bones_1_size)?;
+            let bones_1_data = Self::decode_semi_compressed(&mut data, 60 * bone_count as usize)?;
             let mut bones_1_data = &bones_1_data[..];
             let bones_1 = (0..bone_count).map(|_| Self::decode_bone_1(&mut bones_1_data)).collect::<Option<Vec<_>>>()?;
-            // println!("bones_1 {:?}", bones_1);
 
-            let bones_2_compressed = data.grab_u16_le()? as usize;
-            // println!("bones_2_compressed {:?}", bones_2_compressed);
-            let bones_2_size = 48 * bone_count as usize;
-            let bones_2_data = Self::decode_semi_compressed(&mut data, bones_2_compressed, bones_2_size)?;
-            let mut bones_2_data = &bones_2_data[..];
-            let bones_2 = (0..bone_count).map(|_| Self::decode_bone_2(&mut bones_2_data)).collect::<Option<Vec<_>>>()?;
-            // println!("bones_2 {:?}", bones_2);
+            let bones_2_data = Self::decode_semi_compressed(&mut data, 48 * bone_count as usize)?;
+            let bones_2 = (0..bone_count).map(|_| Self::decode_bone_2(&mut &bones_2_data[..])).collect::<Option<Vec<_>>>()?;
 
-            let bones_3_compressed = data.grab_u16_le()? as usize;
-            // println!("bones_3_compressed {:?}", bones_3_compressed);
-            let bones_3_size = 64 * bone_count as usize;
-            let bones_3_data = Self::decode_semi_compressed(&mut data, bones_3_compressed, bones_3_size)?;
+            let bones_3_data = Self::decode_semi_compressed(&mut data, 64 * bone_count as usize)?;
             let mut bones_3_data = &bones_3_data[..];
             let bones_3 = (0..bone_count).map(|_| Self::decode_bone_3(&mut bones_3_data)).collect::<Option<Vec<_>>>()?;
-            // println!("bones_3 {:?}", bones_3);
         }
 
-
         let transform_matrix = (0..12).map(|_| data.grab_f32_le()).collect::<Option<Vec<_>>>()?;
-
-        // println!("{:?}", transform_matrix);
 
         let mut materials = Vec::with_capacity(material_count as usize);
 
@@ -478,218 +435,80 @@ impl Mesh {
             });
         }
 
-        // println!("materials {:#?}", materials);
-
         let mut sub_meshes = Vec::new();
 
-        {
         // for i in 0..surface_count {
-            // for i in 0..64 {
-            //     println!("attempting face_bone_indices size {:?}", i);
-            //     let mut data = data.clone();
-                // println!("{:02X?}", &data[..32]);
+        {
+            let hierarchy = data.grab_u32_le()?;
+            let destroyable_mesh_levels = data.grab_u32_le()?;
+            let floats_1 = (0..5).map(|_| data.grab_f32_le()).collect::<Option<Vec<_>>>()?;
+            let face_vertex_indices_count = data.grab_u32_le()?;
+            let face_vertex_indices_bone_index_count = data.grab_u32_le()?;
+            let vert_count = data.grab_u32_le()?;
+            let face_count = data.grab_u32_le()?;
+            let index_count = data.grab_u32_le()?;
+            let unknown_1 = data.grab_u32_le()?;
+            let unknown_2 = data.grab_u32_le()?;
+            let unknown_3 = data.grab_u32_le()?;
+            let face_indices = data.grab(15 * face_vertex_indices_count as usize)?.to_owned();
+            let face_bone_indices = (0..face_vertex_indices_bone_index_count)
+                .map(|_| Self::decode_face_bone_index(&mut data)).collect::<Option<Vec<_>>>()?;
+            let floats_2 = (0..8).map(|_| data.grab_f32_le()).collect::<Option<Vec<_>>>()?;
+            let vert_size = data.grab_u32_le()?;
+            let padding = data.grab_u32_le()?;
 
-                let hierarchy = data.grab_u32_le()?;
-                let destroyable_mesh_levels = data.grab_u32_le()?;
-                let floats_1 = (0..5).map(|_| data.grab_f32_le()).collect::<Option<Vec<_>>>()?;
-                // println!("floats_1 {:?}", floats_1);
-                let n_face_vertex_indices = data.grab_u32_le()?;
-                // println!("n_face_vertex_indices {:?}", n_face_vertex_indices);
-                let n_face_vertex_indices_bone_index = data.grab_u32_le()?;
-                // println!("n_face_vertex_indices_bone_index {:?}", n_face_vertex_indices_bone_index);
-                let n_verts = data.grab_u32_le()?;
-                let n_faces = data.grab_u32_le()?;
-                let n_source_verts = data.grab_u32_le()?;
-                let unknown_1 = data.grab_u32_le()?;
-                let unknown_2 = data.grab_u32_le()?;
-                let unknown_3 = data.grab_u32_le()?;
-                let face_indices = data.grab(15 * n_face_vertex_indices as usize)?.to_owned();
-                // let face_indices = (0..n_face_vertex_indices).map(|_| data, 15).map(|x| x.to_owned())).collect::<Option<Vec<_>ab(_>>()?;
-                // println!("face_indices {:?}", face_indices);
-                // 28 looks best for MESH_RIVAL_HERO_APPRENTICE_FEMALE and MESH_TROLL_EARTH_01 (3)
-                // 22 looks best for MESH_STAG_BEETLE (2)
-                let face_bone_indices = (0..n_face_vertex_indices_bone_index).map(|_| Self::decode_face_bone_index(&mut data)).collect::<Option<Vec<_>>>()?;
-                // println!("face_bone_indices {:?}", face_bone_indices);
-                let floats_2 = (0..8).map(|_| data.grab_f32_le()).collect::<Option<Vec<_>>>()?;
-                // println!("floats_2 {:?}", floats_2);
-                let s_vert = data.grab_u32_le()?;
-                let padding = data.grab_u32_le()?;
-                // println!("padding {:?}", padding);
+            println!("hierarchy {:?}", hierarchy);
+            println!("destroyable_mesh_levels {:?}", destroyable_mesh_levels);
+            println!("floats_1 {:?}", floats_1);
+            println!("face_vertex_indices_count {:?}", face_vertex_indices_count);
+            println!("face_vertex_indices_bone_index_count {:?}", face_vertex_indices_bone_index_count);
+            println!("vert_count {:?}", vert_count);
+            println!("face_count {:?}", face_count);
+            println!("index_count {:?}", index_count);
+            println!("unknown_1 {:?}", unknown_1);
+            println!("unknown_2 {:?}", unknown_2);
+            println!("unknown_3 {:?}", unknown_3);
+            println!("face_indices {:?}", face_indices);
+            println!("face_bone_indices {:?}", face_bone_indices);
+            println!("floats_2 {:?}", floats_2);
 
-                // if unknown_2 > 1 && unknown_3 == 0 && s_vert > 20 {
-                // println!("name {:?}", name);
-                // println!("hierarchy {:?}", hierarchy);
-                // println!("destroyable_mesh_levels {:?}", destroyable_mesh_levels);
-                // println!("n_verts {:?}", n_verts);
-                // println!("n_faces {:?}", n_faces);
-                // println!("n_source_verts {:?}", n_source_verts);
-                // println!("unknown_1 {:?}", unknown_1);
-                // println!("unknown_2 {:?}", unknown_2);
-                // println!("unknown_3 {:?}", unknown_3);
-                // println!("s_vert {:?}", s_vert);
-                // }
+            let mesh_level_size = vert_count as usize * vert_size as usize;
 
-            //     println!("");
-            // }
-
-            // MESH_HERO_ASSASSIN_SHIRT_01
-            // MESH_HERO_FOLDED_DEMONIC_HELM_GOOD
-
-            // let vertex_buffer = data.grab(n_verts as usize * s_vert as usize)?.to_owned();
-            let vertex_data_compressed_len = data.grab_u16_le()?;
-
-            let vertex_data_compressed_len = if vertex_data_compressed_len == 0xFFFF {
-                data.grab_u32_le()? as usize
-            } else {
-                vertex_data_compressed_len as usize
-            };
-
-            // println!("vertex_data_compressed_len {:?}", vertex_data_compressed_len);
-
-            let vertex_data = Self::decode_semi_compressed(
+            let vertex_buffer = Self::decode_semi_compressed(
                 &mut data,
-                vertex_data_compressed_len as usize,
-                n_verts as usize * s_vert as usize * (destroyable_mesh_levels as usize).max(1)
+                mesh_level_size + mesh_level_size * destroyable_mesh_levels as usize,
             )?;
 
-            let mut vertex_data = &vertex_data[..];
+            // println!("vertex_buffer {:?}", vertex_buffer);
 
-            // println!("vertex_data {} {:02X?}", vertex_data.len(), vertex_data.iter().map(|x| format!("{:02X?}", x)).collect::<Vec<_>>().join(" "));
+            let index_level_size = mem::size_of::<u16>() * index_count as usize;
 
-            let index_data_compressed_len = data.grab_u16_le()?;
-
-            let index_data_compressed_len = if index_data_compressed_len == 0xFFFF {
-                data.grab_u32_le()? as usize
-            } else {
-                index_data_compressed_len as usize
-            };
-
-            // let group_size =
-            //     if unknown_2 > 0 { unknown_2 as usize }
-            //     else if unknown_3 > 0 { unknown_3 as usize * 2 }
-            //     else { 0 };
-
-            // println!("index_data_compressed_len {:02X?}", &data[..index_data_compressed_len as usize]);
-
-            let index_data = Self::decode_semi_compressed(
+            let index_buffer = Self::decode_semi_compressed(
                 &mut data,
-                index_data_compressed_len as usize,
-                2 * n_source_verts as usize * (destroyable_mesh_levels as usize).max(1),
+                index_level_size + index_level_size * destroyable_mesh_levels as usize,
             )?;
 
-            // println!("index_data {} {:02X?}", index_data.len(), index_data.iter().map(|x| format!("{:02X?}", x)).collect::<Vec<_>>().join(" "));
-
-            // println!("{}, {}, {}, {}, {}, {}, {},", name, n_verts, s_vert, unknown_1, unknown_2, unknown_3, (&vertex_data[..64.min(vertex_data.len())]).iter().map(|x| format!("{}", x)).collect::<Vec<_>>().join(", "));
-
-            {
-                for i in 0..n_verts {
-                    let vert = vertex_data.grab(s_vert as usize)?.to_owned();
-                    let mut vert = &vert[..];
-
-                    match s_vert {
-                        36 => {
-                            let x1 = vert.grab_f32_le()?;
-                            let y1 = vert.grab_f32_le()?;
-                            let z1 = vert.grab_f32_le()?;
-
-                            let u = vert.grab_f32_le()?;
-                            let v = vert.grab_f32_le()?;
-
-                            // let rest_chunks = rest.chunks(4).collect::<Vec<_>>();
-
-                            // println!("v {:?} {:?} {:?} {:?} {:?} {:02X?}", x1, y1, z1, u, v, vert);
-                            // println!("v {:?} {:?} {:?}", x2, y2, z2);
-
-                            println!("v {:?} {:?} {:?}", x1, y1, z1);
-                            // println!("v {:?} {:?} {:?} {:?} {:?}", x2, y2, z2, w2, id);
-                        },
-                        28 => {
-                            let x1 = vert.grab_f32_le()?;
-                            let y1 = vert.grab_f32_le()?;
-                            let z1 = vert.grab_f32_le()?;
-
-                            // let a = vert.grab_u16_le()?;
-                            // let a = vert.grab_u16_le()?;
-                            let u = vert.grab_f32_le()?;
-                            let v = vert.grab_f32_le()?;
-
-                            // let f1 = vert.grab_f32_le()?;
-                            // let f2 = vert.grab_f32_le()?;
-
-                            println!("v {:?} {:?} {:?}", x1, y1, z1);
-                            // println!("v {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:02X?}", x1, y1, z1, a, u, v, f1, vert);
-                        },
-                        20 => {
-                            // let _ = vert.grab_u16_le()?;
-                            // let _ = vert.grab_u16_le()?;
-                            // let _ = vert.grab_u16_le()?;
-                            // let _ = vert.grab_u16_le()?;
-                            // let x1 = vert.grab_f32_le()?;
-
-                            // let y1 = vert.grab_f32_le()?;
-
-                            // let z1 = vert.grab_f32_le()?;
-
-                            // println!("v {:?} {:?} {:?}", x1, y1, z1);
-                        }
-                        _ => {
-
-                        }
-                    }
-                    // let v = Self::decode_vertex_2(&mut vertex_data)?;
-                    // println!("v{:?} {:?}", i, v);
-                }
-
-                let mut indices = &index_data[..];
-
-                // let _ = indices.grab(16);
-
-                for i in 0 .. (n_source_verts) / 3 {
-                    // println!("{:?}, {:?}, {:02X?}", n_source_verts, i, indices.get(..12));
-                    let v1 = indices.grab_u16_le()?;
-                    let v2 = indices.grab_u16_le()?;
-                    let v3 = indices.grab_u16_le()?;
-                    // let unknown = indices.grab(3);
-                    println!("f {:?} {:?} {:?}", v1 + 1, v2 + 1, v3 + 1);
-                    // println!();
-                }
-            }
-
-            // {
-            //     let mut index_data = &index_data[..];
-
-            //     let mut indices = Vec::new();
-
-            //     while let Some(x) = index_data.grab_u16_le() {
-            //         indices.push(x);
-            //     }
-
-            //     println!("{:?}, {}, {}, {}, {}, {}, {},", name, n_source_verts, s_vert, unknown_1, unknown_2, unknown_3, (&indices[..48.min(indices.len())]).iter().map(|x| format!("{}", x)).collect::<Vec<String>>().join(", "))
-            // }
-
-            // println!("{:02X?}", &data[..32]);
-
-            // println!("{:?}, {}, {}, {},", name, n_verts, s_vert, (&vertex_data[..48]).iter().map(|x|
-            // format!("{}", x)).collect::<Vec<String>>().join(", "));
+            // println!("index_buffer {:?}", index_buffer);
 
             sub_meshes.push(MeshSubMesh {
                 hierarchy,
                 destroyable_mesh_levels,
                 floats_1,
-                n_face_vertex_indices,
-                n_face_vertex_indices_bone_index,
-                n_verts,
-                n_faces,
-                n_source_verts,
+                face_vertex_indices_count,
+                face_vertex_indices_bone_index_count,
+                vert_count,
+                face_count,
+                index_count,
                 unknown_1,
                 unknown_2,
                 unknown_3,
                 face_indices,
                 face_bone_indices,
                 floats_2,
-                s_vert,
+                vert_size,
                 padding,
-                // vertex_buffer,
+                vertex_buffer,
+                index_buffer,
             });
         }
 
@@ -715,34 +534,35 @@ impl Mesh {
         })
     }
 
-    pub fn decode_semi_compressed(data: &mut &[u8], compressed: usize, mut size: usize) -> Option<Vec<u8>> {
-        // println!("compression output len {:?}", size);
+    pub fn decode_semi_compressed(data: &mut &[u8], mut size: usize) -> Option<Vec<u8>> {
+        let compressed_len = data.grab_u16_le()?;
 
-        let mut uncompressed_data = Vec::with_capacity(size);
+        let compressed_len = if compressed_len == 0xFFFF {
+            data.grab_u32_le()? as usize
+        } else {
+            compressed_len as usize
+        };
 
-        if compressed > 0 {
-            let input = data.grab(compressed as usize)?;
-            let out = crate::lzo::decompress(&input, size);
-            let out = match out {
-                Err(e) => {
-                    // println!("decompress error {:?}", e);
-                    return None
-                },
+        let mut uncompressed = Vec::with_capacity(size);
+
+        if compressed_len > 0 {
+            let input = data.grab(compressed_len as usize)?;
+
+            let out = match crate::lzo::decompress(&input, size) {
+                Err(e) => return None,
                 Ok(r) => r,
             };
 
             size -= out.len() as usize;
 
-            // println!("decompression output buffer unused {:?}", size);
-
-            uncompressed_data.extend(&out);
+            uncompressed.extend(&out);
         }
 
         if size > 0 {
-            uncompressed_data.extend(data.grab(size)?);
+            uncompressed.extend(data.grab(size)?);
         }
 
-        Some(uncompressed_data)
+        Some(uncompressed)
     }
 
     fn decode_bone_1(data: &mut &[u8]) -> Option<MeshBone1> {
@@ -808,3 +628,104 @@ impl Mesh {
         })
     }
 }
+
+// NORM_TEX_1 [
+//     (0,   0,  FLOAT3,   DEFAULT, TEXCOORD, 0),
+//     (0,   12, FLOAT3,   DEFAULT, TEXCOORD, 1),
+//     (0,   24, FLOAT2,   DEFAULT, TEXCOORD, 2),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]
+// LANDSCAPE_FOREGROUND [
+//     (0,   0,  SHORT2,   DEFAULT, TEXCOORD, 0),
+//     (0,   4,  FLOAT1,   DEFAULT, TEXCOORD, 1),
+//     (0,   8,  FLOAT3,   DEFAULT, TEXCOORD, 2),
+//     (0,   20, D3DCOLOR, DEFAULT, TEXCOORD, 3),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]
+// LANDSCAPE_BACKGROUND [
+//     (0,  0,   SHORT2,   DEFAULT, TEXCOORD, 0),
+//     (0,  4,   FLOAT1,   DEFAULT, TEXCOORD, 1),
+//     (0,  8,   FLOAT3,   DEFAULT, TEXCOORD, 2),
+//     (0,  20,  D3DCOLOR, DEFAULT, TEXCOORD, 3),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]
+// COL_TEX_1 [
+//     (0,   0,  FLOAT3,   DEFAULT, TEXCOORD, 0),
+//     (0,   12, D3DCOLOR, DEFAULT, TEXCOORD, 1),
+//     (0,   16, FLOAT2,   DEFAULT, TEXCOORD, 2),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]
+// WATER_FOREGROUND [
+//     (0,   0,  SHORT2,   DEFAULT, TEXCOORD, 0),
+//     (0,   4,  FLOAT1,   DEFAULT, TEXCOORD, 1),
+//     (0,   8,  SHORT2,   DEFAULT, TEXCOORD, 2),
+//     (0,   12, FLOAT2,   DEFAULT, TEXCOORD, 3),
+//     (0,   20, FLOAT4,   DEFAULT, TEXCOORD, 4),
+//     (0,   36, FLOAT4,   DEFAULT, TEXCOORD, 5),
+//     (0,   52, FLOAT4,   DEFAULT, TEXCOORD, 6),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]
+// WATER_BACKGROUND [
+//     (0,   0,  SHORT2,   DEFAULT, TEXCOORD, 0),
+//     (0,   4,  FLOAT1,   DEFAULT, TEXCOORD, 1),
+//     (0,   8,  FLOAT4,   DEFAULT, TEXCOORD, 2),
+//     (0,   24, FLOAT4,   DEFAULT, TEXCOORD, 3),
+//     (0,   40, FLOAT4,   DEFAULT, TEXCOORD, 4),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]
+// SEA_BACKGROUND [
+//     (0,   0,  FLOAT3,   DEFAULT, TEXCOORD, 0),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]
+// POS_RHW_COL_SPEC_TEX_1 [
+//     (0,   0,  FLOAT4,   DEFAULT, TEXCOORD, 0),
+//     (0,   16, D3DCOLOR, DEFAULT, TEXCOORD, 1),
+//     (0,   20, D3DCOLOR, DEFAULT, TEXCOORD, 2),
+//     (0,   24, FLOAT2,   DEFAULT, TEXCOORD, 3),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]
+// MATRIX_INDEXED_NORM_TEX_1 [
+//     (0,   0,  FLOAT3,   DEFAULT, TEXCOORD, 0),
+//     (0,   12, FLOAT3,   DEFAULT, TEXCOORD, 1),
+//     (0,   24, FLOAT2,   DEFAULT, TEXCOORD, 2),
+//     (0,   32, SHORT2,   DEFAULT, TEXCOORD, 3),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]
+// SPRITE_GROUP [
+//     (0,   0,  FLOAT1,   DEFAULT, TEXCOORD, 0),
+//     (0,   4,  SHORT2,   DEFAULT, TEXCOORD, 1),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]
+// DECAL_GROUP [
+//     (0,   0,  FLOAT1,   DEFAULT, TEXCOORD, 0),
+//     (0,   4,  FLOAT1,   DEFAULT, TEXCOORD, 1),
+//     (0,   8,  SHORT2,   DEFAULT, TEXCOORD, 2)
+// ]
+// Z_SPRITE [
+//     (0,   0,  FLOAT3,   DEFAULT, TEXCOORD, 0),
+//     (0,   12, SHORT2,   DEFAULT, TEXCOORD, 1),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]
+// TEXT [
+//     (0,   0,  FLOAT4,   DEFAULT, POSITION, 0),
+//     (0,   16, D3DCOLOR, DEFAULT, TEXCOORD, 0),
+//     (0,   20, FLOAT2,   DEFAULT, TEXCOORD, 1),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]
+// POS [
+//     (0,   0,  FLOAT3,   DEFAULT, TEXCOORD, 0),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]
+// WEATHER [
+//     (0,   0,  FLOAT3,   DEFAULT, TEXCOORD, 0),
+//     (0,   12, FLOAT2,   DEFAULT, TEXCOORD, 1),
+//     (0,   20, SHORT2,   DEFAULT, TEXCOORD, 2),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]
+// NORM_COL_TEX_1 [
+//     (0,   0,  FLOAT3,   DEFAULT, TEXCOORD, 0),
+//     (0,   12, FLOAT3,   DEFAULT, TEXCOORD, 1),
+//     (0,   24, D3DCOLOR, DEFAULT, TEXCOORD, 2),
+//     (0,   28, FLOAT2,   DEFAULT, TEXCOORD, 3),
+//     (255, 0,  UNUSED,   DEFAULT, POSITION, 0)
+// ]

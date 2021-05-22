@@ -1,75 +1,53 @@
-// use crate::script::ScriptField;
+#[derive(Debug)]
+pub struct Tng {
+    pub version: i64,
+    pub sections: Vec<TngSection>,
+}
 
-pub struct Tng {}
+#[derive(Debug)]
+pub struct TngSection {
+    pub name: String,
+    pub things: Vec<TngThing>,
+}
 
-// #[derive(Debug,PartialEq)]
-// pub struct Tng {
-//     pub version: u32,
-//     pub sections: Vec<TngSection>,
-// }
+#[derive(Debug)]
+pub enum TngThing {
+    Unknown {
+        kind: String,
+        fields: Vec<(TngKey, TngValue)>,
+    }
+}
 
-// #[derive(Debug,PartialEq)]
-// pub struct TngSection {
-//     pub xxx_section_start: Option<String>,
-//     pub things: Vec<Thing>,
-// }
+#[derive(Debug)]
+pub struct TngKey {
+    pub name: String,
+    pub accessors: Vec<TngAccessor>,
+}
 
-// #[derive(Debug,PartialEq)]
-// pub struct Thing {
-//     pub new_thing: ScriptField,
-//     pub fields: Vec<ScriptField>,
-// }
+#[derive(Debug)]
+pub enum TngAccessor {
+    Array(i64),
+    Object(String),
+}
 
-// impl Tng {
-//     pub fn decode<Source: Read + Seek>(source: &mut Source) -> Result<Self, Error> {
-//         let mut input = Vec::new();
-//         source.read_to_end(&mut input)?;
-//         let (_, tng) = all_consuming(Tng::decode_tng)(&input)?;
-//         Ok(tng)
-//     }
+#[derive(Debug)]
+pub enum TngValue {
+    Integer(i64),
+    Uid(u64),
+    Float(f32),
+    Bool(bool),
+    String(String),
+    Ident(String),
+    Struct(String, Vec<TngValue>),
+    Null,
+    Empty,
+}
 
-//     pub fn decode_tng(input: &[u8]) -> IResult<&[u8], Tng, Error> {
-//         let (input, version) = ScriptField::decode_field_named("Version")(input)?;
-//         let (input, sections) = many0(Self::decode_tng_section)(input)?;
-
-//         Ok(
-//             (
-//                 input,
-//                 Tng {
-//                     version: version,
-//                     sections: sections,
-//                 }
-//             )
-//         )
-//     }
-
-//     pub fn decode_tng_section(input: &[u8]) -> IResult<&[u8], TngSection, Error> {
-//         let (input, section_start) = ScriptField::decode_field_named("XXXSectionStart")(input)?;
-//         let (input, (things, _end)) = many_till(Self::decode_tng_thing, ScriptField::decode_field_named("XXXSectionEnd"))(input)?;
-
-//         Ok(
-//             (
-//                 input,
-//                 TngSection {
-//                     section_start: section_start,
-//                     things: things,
-//                 }
-//             )
-//         )
-//     }
-
-//     pub fn decode_tng_thing(input: &[u8]) -> IResult<&[u8], TngThing, Error> {
-//         let (input, new_thing) = ScriptField::decode_field_named("NewThing")(input)?;
-//         let (input, (fields, _end)) = many_till(ScriptField::decode_field, ScriptField::decode_field_named("EndThing"))(input)?;
-
-//         Ok(
-//             (
-//                 input,
-//                 TngThing {
-//                     new_thing: new_thing,
-//                     fields: fields
-//                 }
-//             )
-//         )
-//     }
-// }
+impl Tng {
+    pub fn decode(data: &mut &[u8]) -> Option<Tng> {
+        let text = std::str::from_utf8(data).ok()?;
+        let tng = crate::tng_parser::TngParser::new().parse(text);
+        println!("{:#?}", tng);
+        tng.ok()
+    }
+}

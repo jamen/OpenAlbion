@@ -6,7 +6,7 @@ use std::ffi::OsStr;
 
 use pico_args::Arguments;
 
-use fable_data::{Wad,Big,BigInfo,Texture,Lev,Stb,StbLev,NamesBin,Bin,Mesh};
+use fable_data::{Wad,Big,BigInfo,Texture,Lev,Stb,StbLev,NamesBin,Bin,Mesh,Tng};
 
 
 
@@ -38,42 +38,73 @@ fn wad(mut args: Arguments, path: PathBuf) {
     let mut wad_file = BufReader::new(File::open(&path).unwrap());
 
     let wad = Wad::decode(&mut wad_file).unwrap();
+    let wad_index = wad.index_by_path();
 
-    if args.contains(["-d","--debug"]) {
-        println!("{:#?}", wad);
-        return
-    }
+    if let Ok(Some(entry_name)) = args.opt_free_from_str::<String>() {
+        if let Some(entry) = wad_index.get(&entry_name) {
+            let mut entry_data = vec![0; entry.data_size as usize];
 
-    let wad_name = path.file_stem().unwrap();
+            entry.read_from(&mut wad_file, &mut entry_data).unwrap();
 
-    for entry in wad.entries {
-        let mut file_data = vec![0; entry.data_size as usize];
+            let mut entry_data = &entry_data[..];
 
-        entry.read_from(&mut wad_file, &mut file_data).unwrap();
+            let entry_path = PathBuf::from(&entry.path);
+            let entry_ext = entry_path.extension().unwrap().to_str().unwrap();
 
-        let file_path = PathBuf::from(entry.path);
-
-        let file_path_components: Vec<Component<'_>> = file_path
-            .components()
-            .skip_while(|x| *x != Component::Normal(OsStr::new(wad_name)))
-            .skip(1)
-            .collect();
-
-        let file_path = if file_path_components.len() > 0 {
-            let file_path_relevant: PathBuf = file_path_components.iter().collect();
-            path.with_extension("").join(file_path_relevant)
+            match entry_ext {
+                "tng" => {
+                    let tng = Tng::decode(&mut entry_data);
+                    // println!("{:?}", tng);
+                }
+                "lev" => {
+                    Lev::decode(&mut entry_data);
+                },
+                _ => {
+                    eprintln!("Unknown entry extension.");
+                }
+            }
         } else {
-            path.parent().unwrap().join(file_path.file_name().unwrap())
-        };
-
-        match create_dir_all(file_path.parent().unwrap()) {
-            Ok(_) => {}
-            Err(x) if x.kind() == std::io::ErrorKind::AlreadyExists => {}
-            Err(x) => panic!("{}", x),
-        };
-
-        write(file_path, file_data).unwrap();
+            eprintln!("Entry not found.");
+        }
+    } else {
+        println!("{:#?}", wad);
     }
+
+    // if args.contains(["-d","--debug"]) {
+    //     println!("{:#?}", wad);
+    //     return
+    // }
+
+    // let wad_name = path.file_stem().unwrap();
+
+    // for entry in wad.entries {
+    //     let mut file_data = vec![0; entry.data_size as usize];
+
+    //     entry.read_from(&mut wad_file, &mut file_data).unwrap();
+
+    //     let file_path = PathBuf::from(entry.path);
+
+    //     let file_path_components: Vec<Component<'_>> = file_path
+    //         .components()
+    //         .skip_while(|x| *x != Component::Normal(OsStr::new(wad_name)))
+    //         .skip(1)
+    //         .collect();
+
+    //     let file_path = if file_path_components.len() > 0 {
+    //         let file_path_relevant: PathBuf = file_path_components.iter().collect();
+    //         path.with_extension("").join(file_path_relevant)
+    //     } else {
+    //         path.parent().unwrap().join(file_path.file_name().unwrap())
+    //     };
+
+    //     match create_dir_all(file_path.parent().unwrap()) {
+    //         Ok(_) => {}
+    //         Err(x) if x.kind() == std::io::ErrorKind::AlreadyExists => {}
+    //         Err(x) => panic!("{}", x),
+    //     };
+
+    //     write(file_path, file_data).unwrap();
+    // }
 }
 
 fn stb(mut args: Arguments, path: PathBuf) {
@@ -208,7 +239,47 @@ fn big(mut args: Arguments, path: PathBuf) {
             eprintln!("Bank not found {:?}", bank_name);
         }
     } else {
+        // let mut types_1 = HashSet::new();
 
+        for bank in big.banks.iter() {
+            for entry in bank.entries.iter() {
+                let mut file_data = vec![0; entry.data_size as usize];
+
+                entry.read_from(&mut big_file, &mut file_data).unwrap();
+
+                let file_path =
+                    PathBuf::from(&bank.name).join(
+                        if entry.name.starts_with("[") {
+                            let path = &entry.name[1 .. entry.name.len() - 1];
+                            let path = PathBuf::from(path);
+                            let file_stem = path.file_stem().unwrap();
+                            // println!("path name {:?}", entry.name);
+                            file_stem.to_str().unwrap().to_owned()
+                        } else {
+                            entry.name.clone()
+                        }
+                    );
+
+                    // if !types_1.contains(&entry.kind) {
+                    //     types_1.insert(entry.kind);
+                    //     println!("{:?} {:?}", file_path, entry.kind);
+                    // }
+
+                    // if types_2.contains(&entry.kind_2) {
+                    //     types_2.insert(entry.kind_2);
+                    //     println!("{:?} {:?}", file_path, entry.kind_2);
+                    // }
+
+
+                match create_dir_all(file_path.parent().unwrap()) {
+                    Ok(_) => {}
+                    Err(x) if x.kind() == std::io::ErrorKind::AlreadyExists => {}
+                    Err(x) => panic!("{}", x),
+                };
+
+                write(&file_path, file_data).unwrap();
+            }
+        }
     }
 
     // if args.contains(["-d","--debug"]) {
@@ -293,49 +364,6 @@ fn big(mut args: Arguments, path: PathBuf) {
     //         }
     //     }
     //     return
-    // }
-
-    // let mut types_1 = HashSet::new();
-    // // let mut types_2 = HashSet::new();
-
-    // for bank in big.banks.iter() {
-    //     for entry in bank.entries.iter() {
-    //         let mut file_data = vec![0; entry.data_size as usize];
-
-    //         entry.read_from(&mut big_file, &mut file_data).unwrap();
-
-    //         let file_path =
-    //             PathBuf::from(&bank.name).join(
-    //                 if entry.name.starts_with("[") {
-    //                     let path = &entry.name[1 .. entry.name.len() - 1];
-    //                     let path = PathBuf::from(path);
-    //                     let file_stem = path.file_stem().unwrap();
-    //                     // println!("path name {:?}", entry.name);
-    //                     file_stem.to_str().unwrap().to_owned()
-    //                 } else {
-    //                     entry.name.clone()
-    //                 }
-    //             );
-
-    //             if !types_1.contains(&entry.kind) {
-    //                 types_1.insert(entry.kind);
-    //                 println!("{:?} {:?}", file_path, entry.kind);
-    //             }
-
-    //             // if types_2.contains(&entry.kind_2) {
-    //             //     types_2.insert(entry.kind_2);
-    //             //     println!("{:?} {:?}", file_path, entry.kind_2);
-    //             // }
-
-
-    //         match create_dir_all(file_path.parent().unwrap()) {
-    //             Ok(_) => {}
-    //             Err(x) if x.kind() == std::io::ErrorKind::AlreadyExists => {}
-    //             Err(x) => panic!("{}", x),
-    //         };
-
-    //         write(&file_path, file_data).unwrap();
-    //     }
     // }
 }
 

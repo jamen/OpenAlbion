@@ -1,28 +1,36 @@
 use std::collections::HashMap;
 
-use winit::event::{VirtualKeyCode,ModifiersState};
-use winit::event::{Event,WindowEvent,DeviceEvent,KeyboardInput,ElementState};
+use winit::event::{Event,WindowEvent,DeviceEvent,VirtualKeyCode,KeyboardInput,ElementState};
 
-#[derive(Default)]
+use crate::View;
+
 pub struct State {
     pub keys: HashMap<VirtualKeyCode, KeyCondition>,
-    pub modifiers: ModifiersState,
+    pub page: Page,
 }
 
-/// Whether a key press is on its first frame or its been held multiple frames.
+#[derive(Debug)]
 pub enum KeyCondition {
     First,
-    Held,
+    Repeat
+}
+
+#[derive(Debug)]
+pub enum Page {
+    Intro,
+    ModelView,
+    LevelView,
 }
 
 impl State {
-    pub fn update(&mut self) {
-
+    pub fn new() -> Self {
+        Self {
+            keys: HashMap::new(),
+            page: Page::Intro,
+        }
     }
-}
 
-impl State {
-    pub fn handle_window_event(&mut self, event: Event<'static, ()>) {
+    pub fn handle_window_event(&mut self, event: &Event<'static, ()>) {
         match event {
             Event::WindowEvent { event: window_event, .. } => {
                 match window_event {
@@ -31,19 +39,28 @@ impl State {
                         ..
                     } => {
                         match element_state {
-                            ElementState::Pressed => self.on_key_pressed_or_held(virtual_keycode),
-                            ElementState::Released => self.on_key_released(virtual_keycode),
+                            ElementState::Pressed if self.keys.contains_key(&virtual_keycode) => {
+                                self.keys.insert(*virtual_keycode, KeyCondition::Repeat);
+                                self.on_key_repeat(*virtual_keycode);
+                            },
+                            ElementState::Pressed => {
+                                self.keys.insert(*virtual_keycode, KeyCondition::First);
+                                self.on_key_pressed(*virtual_keycode);
+                            },
+                            ElementState::Released => {
+                                self.keys.remove(&virtual_keycode);
+                                self.on_key_released(*virtual_keycode);
+                            },
                         }
                     },
                     WindowEvent::Focused(true) => self.on_focus(),
                     WindowEvent::Focused(false) => self.on_blur(),
-                    WindowEvent::ModifiersChanged(modifiers) => self.on_key_modifiers_changed(modifiers),
                     _ => {}
                 }
             },
             Event::DeviceEvent { event: device_event, .. } => {
                 match device_event {
-                    DeviceEvent::MouseMotion { delta } => self.on_mouse_motion(delta),
+                    DeviceEvent::MouseMotion { delta } => self.on_mouse_motion(*delta),
                     _ => {}
                 }
             },
@@ -51,17 +68,21 @@ impl State {
         }
     }
 
-    pub fn on_key_pressed_or_held(&mut self, key: VirtualKeyCode) {
-        // println!("on_key_pressed_or_held {:?}", key);
+    pub fn on_key_pressed(&mut self, key: VirtualKeyCode) {
+        println!("on_key_pressed {:?} {:?}", key, self.keys);
+    }
+
+    pub fn on_key_repeat(&mut self, key: VirtualKeyCode) {
+        println!("on_key_repeat {:?} {:?}", key, self.keys);
     }
 
     pub fn on_key_released(&mut self, key: VirtualKeyCode) {
-        // println!("on_key_released {:?}", key);
+        println!("on_key_released {:?} {:?}", key, self.keys);
     }
 
-    pub fn on_key_modifiers_changed(&mut self, modifiers: ModifiersState) {
-        // println!("on_key_modifiers_changed {:?}", modifiers);
-    }
+    // pub fn on_key_modifiers_changed(&mut self, modifiers: ModifiersState) {
+    //     // println!("on_key_modifiers_changed {:?}", modifiers);
+    // }
 
     pub fn on_focus(&mut self) {
         // println!("on_focus");
@@ -71,7 +92,12 @@ impl State {
         // println!("on_blur");
     }
 
-    pub fn on_mouse_motion(&mut self, delta: (f64, f64)) {
+    pub fn on_mouse_motion(&mut self, _delta: (f64, f64)) {
         // println!("on_mouse_motion {:?}", delta);
+    }
+
+    pub fn update(&mut self) {
+        // Hmm, I will have to pass the state through arguments, or just update the GUI here.
+        // self.gui.update();
     }
 }
