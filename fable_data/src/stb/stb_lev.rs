@@ -23,12 +23,12 @@ impl StbLev {
 
         let mut data = &data[..];
 
-        let first_block = data.grab(2048)?;
+        let first_block = data.advance(2048)?;
 
         println!("{:?}", first_block);
 
-        let second_block_len = data.grab_u32_le()? as usize;
-        let second_block = data.grab(second_block_len + (second_block_len % 2048))?.to_owned();
+        let second_block_len = data.parse_u32_le()? as usize;
+        let second_block = data.advance(second_block_len + (second_block_len % 2048))?.to_owned();
         let second_block = (&second_block[..second_block_len]).to_owned();
 
         // let second_block = data.grab((second_block_len as usize).min(2048) - 4)?;
@@ -40,11 +40,11 @@ impl StbLev {
         let mut blocks = Vec::new();
 
         while blocks.len() < 19 {
-            let decompressed_size = data.grab_u32_le()?;
-            let compressed_len = data.grab_u32_le()?;
+            let decompressed_size = data.parse_u32_le()?;
+            let compressed_len = data.parse_u32_le()?;
             println!("{:?} {:?}", decompressed_size, compressed_len);
-            let compressed_data = data.grab(compressed_len as usize)?.to_owned();
-            data.grab(2040usize.saturating_sub(compressed_data.len()))?;
+            let compressed_data = data.advance(compressed_len as usize)?.to_owned();
+            data.advance(2040usize.saturating_sub(compressed_data.len()))?;
             // println!("{:?} {:?} {:x?}", decompressed_size, compressed_len, compressed_data);
             let decompressed = crate::lzo::decompress(&compressed_data, decompressed_size as usize);
             // println!("{:?} {:?} {:?}", decompressed_size, compressed_len, decompressed);
@@ -57,15 +57,15 @@ impl StbLev {
 
         // let mut data = &data[..];
 
-        // let offset = data.grab_u32_le()?;
-        // let compressed_size = data.grab_u32_le()?;
-        // let start_x = data.grab_f32_le()?;
-        // let start_y = data.grab_f32_le()?;
-        // let start_z = data.grab_f32_le()?;
-        // let end_x = data.grab_f32_le()?;
-        // let end_y = data.grab_f32_le()?;
-        // let end_z = data.grab_f32_le()?;
-        // let unknown_1 = data.grab_u32_le()?;
+        // let offset = data.parse_u32_le()?;
+        // let compressed_size = data.parse_u32_le()?;
+        // let start_x = data.parse_f32_le()?;
+        // let start_y = data.parse_f32_le()?;
+        // let start_z = data.parse_f32_le()?;
+        // let end_x = data.parse_f32_le()?;
+        // let end_y = data.parse_f32_le()?;
+        // let end_z = data.parse_f32_le()?;
+        // let unknown_1 = data.parse_u32_le()?;
 
         // println!("offset {:?}", offset);
         // println!("compressed_size {:?}", compressed_size);

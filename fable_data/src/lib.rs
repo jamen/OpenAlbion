@@ -43,7 +43,7 @@ pub use def::*;
 // pub use met::*;
 // pub use qst::*;
 // pub use save::*;
-pub(crate) use shared::*;
+pub use shared::*;
 pub use stb::*;
 // pub use tex::*;
 // pub use tng::*;

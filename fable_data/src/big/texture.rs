@@ -17,10 +17,10 @@ impl Texture {
         let mut frames = Vec::new();
 
         if info.first_mipmap_compressed_size > 0 {
-            let size = info.first_mipmap_compressed_size & 0xffff0000 | data.grab_u16_le()? as u32;
-            let size = if size as i16 == -1 { data.grab_u32_le()? } else { size };
+            let size = info.first_mipmap_compressed_size & 0xffff0000 | data.parse_u16_le()? as u32;
+            let size = if size as i16 == -1 { data.parse_u32_le()? } else { size };
 
-            let first_mipmap_compressed = data.grab(size as usize)?;
+            let first_mipmap_compressed = data.advance(size as usize)?;
 
             let data = crate::lzo::decompress(first_mipmap_compressed, info.first_mipmap_size as usize).ok()?;
 

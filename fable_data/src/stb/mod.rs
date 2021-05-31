@@ -65,12 +65,12 @@ impl Stb {
 
         source.read_exact(&mut header_data).ok()?;
 
-        let magic_number = header_data.grab_str(4)?.to_owned();
-        let version = (header_data.grab_u32_le()?, header_data.grab_u32_le()?, header_data.grab_u32_le()?);
-        let block_size = header_data.grab_u32_le()?;
-        let entry_count = header_data.grab_u32_le()?;
-        let level_count = header_data.grab_u32_le()?;
-        let entries_start = header_data.grab_u32_le()?;
+        let magic_number = header_data.parse_str(4)?.to_owned();
+        let version = (header_data.parse_u32_le()?, header_data.parse_u32_le()?, header_data.parse_u32_le()?);
+        let block_size = header_data.parse_u32_le()?;
+        let entry_count = header_data.parse_u32_le()?;
+        let level_count = header_data.parse_u32_le()?;
+        let entries_start = header_data.parse_u32_le()?;
 
         // println!("magic_number {:?}", magic_number);
         // println!("version {:?}", version);
@@ -86,9 +86,9 @@ impl Stb {
 
         let mut entries_data = &mut entries_data[..];
 
-        let unknown_1 = entries_data.grab_u32_le()?;
-        let unknown_2 = entries_data.grab_u32_le()?;
-        let level_count_again = entries_data.grab_u32_le()?;
+        let unknown_1 = entries_data.parse_u32_le()?;
+        let unknown_2 = entries_data.parse_u32_le()?;
+        let level_count_again = entries_data.parse_u32_le()?;
 
         // println!("unknown_1 {:?}", unknown_1);
         // println!("unknown_2 {:?}", unknown_2);
@@ -97,28 +97,28 @@ impl Stb {
         let mut entries = Vec::new();
 
         while entries.len() < level_count_again as usize {
-            let unknown_1 = entries_data.grab_u32_le()?;
-            let id = entries_data.grab_u32_le()?;
-            let unknown_2 = entries_data.grab_u32_le()?;
-            let len = entries_data.grab_u32_le()?;
-            let pos = entries_data.grab_u32_le()?;
-            let unknown_3 = entries_data.grab_u32_le()?;
+            let unknown_1 = entries_data.parse_u32_le()?;
+            let id = entries_data.parse_u32_le()?;
+            let unknown_2 = entries_data.parse_u32_le()?;
+            let len = entries_data.parse_u32_le()?;
+            let pos = entries_data.parse_u32_le()?;
+            let unknown_3 = entries_data.parse_u32_le()?;
 
-            let name_1_len = entries_data.grab_u32_le()?;
-            let name_1 = entries_data.grab_str(name_1_len as usize)?.to_owned();
+            let name_1_len = entries_data.parse_u32_le()?;
+            let name_1 = entries_data.parse_str(name_1_len as usize)?.to_owned();
 
-            let unknown_4 = entries_data.grab_u32_le()?;
-            let unknown_5 = entries_data.grab_u32_le()?;
+            let unknown_4 = entries_data.parse_u32_le()?;
+            let unknown_5 = entries_data.parse_u32_le()?;
 
-            let name_2_len = entries_data.grab_u32_le()?;
-            let name_2 = entries_data.grab_str(name_2_len as usize)?.to_owned();
+            let name_2_len = entries_data.parse_u32_le()?;
+            let name_2 = entries_data.parse_str(name_2_len as usize)?.to_owned();
 
-            let extras_len = entries_data.grab_u32_le()?;
+            let extras_len = entries_data.parse_u32_le()?;
             let extras = if extras_len == 16 {
-                let unknown_1 = entries_data.grab_u32_le()?;
-                let unknown_2 = entries_data.grab_u32_le()?;
-                let unknown_3 = entries_data.grab_u32_le()?;
-                let unknown_4 = entries_data.grab_u32_le()?;
+                let unknown_1 = entries_data.parse_u32_le()?;
+                let unknown_2 = entries_data.parse_u32_le()?;
+                let unknown_3 = entries_data.parse_u32_le()?;
+                let unknown_4 = entries_data.parse_u32_le()?;
                 Some(StbEntryExtras {
                     unknown_1,
                     unknown_2,
@@ -171,21 +171,21 @@ impl Stb {
         let data_lookback = &data[..];
         let mut data = &data[..];
 
-        let entries_count = data.grab_u32_le()?;
+        let entries_count = data.parse_u32_le()?;
 
         let mut entries = HashMap::with_capacity(entries_count as usize);
 
         while entries.len() < entries_count as usize {
-            let path = data.grab_str_until_nul()?.to_owned();
-            let offset = data.grab_u32_le()?;
+            let path = data.parse_str_until_nul()?.to_owned();
+            let offset = data.parse_u32_le()?;
 
             let entry_data = &data_lookback[offset as usize..];
 
-            let unknown_1 = data.grab_u32_le()?;
-            let id = data.grab_u32_le()?;
-            let unknown_2 = data.grab_u32_le()?;
-            let width = data.grab_u32_le()?;
-            let height = data.grab_u32_le()?;
+            let unknown_1 = data.parse_u32_le()?;
+            let id = data.parse_u32_le()?;
+            let unknown_2 = data.parse_u32_le()?;
+            let width = data.parse_u32_le()?;
+            let height = data.parse_u32_le()?;
 
             entries.insert(path, StbStaticMapEntry {
                 offset,

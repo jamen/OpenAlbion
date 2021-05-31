@@ -1,14 +1,16 @@
 use std::mem;
 use std::num::NonZeroU64;
 
-use crate::{Renderer,RendererBase,BufferId,ModelId,State,include_glsl};
+use crate::{Renderer,RendererBase,State,include_glsl};
 
 pub struct ModelViewRenderer {
     g_buffer_model_1_pipeline: wgpu::RenderPipeline,
     light_pipeline: wgpu::RenderPipeline,
     scene_bind_group: wgpu::BindGroup,
     view_projection: BufferId,
-    model: Option<ModelId>,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    texture: wgpu::Buffer,
 }
 
 impl ModelViewRenderer {

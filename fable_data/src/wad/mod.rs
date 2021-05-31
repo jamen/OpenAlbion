@@ -65,12 +65,12 @@ impl Wad {
 
         source.read_exact(&mut header).ok()?;
 
-        let magic_number = header.grab_str(4)?.to_owned();
-        let version = (header.grab_u32_le()?, header.grab_u32_le()?, header.grab_u32_le()?);
-        let block_size = header.grab_u32_le()?;
-        let entry_count = header.grab_u32_le()?;
-        let entry_count_repeat = header.grab_u32_le()?;
-        let entries_start = header.grab_u32_le()?;
+        let magic_number = header.parse_str(4)?.to_owned();
+        let version = (header.parse_u32_le()?, header.parse_u32_le()?, header.parse_u32_le()?);
+        let block_size = header.parse_u32_le()?;
+        let entry_count = header.parse_u32_le()?;
+        let entry_count_repeat = header.parse_u32_le()?;
+        let entries_start = header.parse_u32_le()?;
 
         let mut entries_data = Vec::new();
 
@@ -82,14 +82,14 @@ impl Wad {
         let mut entries = Vec::new();
 
         while entries.len() < entry_count as usize {
-            let unknown_1 = entries_data.grab(16)?.to_owned();
-            let id = entries_data.grab_u32_le()?;
-            let unknown_2 = entries_data.grab_u32_le()?;
-            let data_size = entries_data.grab_u32_le()?;
-            let data_start = entries_data.grab_u32_le()?;
-            let unknown_3 = entries_data.grab_u32_le()?;
-            let path = entries_data.grab_str_with_u32_le_prefix()?.to_owned();
-            let unknown_4 = entries_data.grab(16)?.to_owned();
+            let unknown_1 = entries_data.advance(16)?.to_owned();
+            let id = entries_data.parse_u32_le()?;
+            let unknown_2 = entries_data.parse_u32_le()?;
+            let data_size = entries_data.parse_u32_le()?;
+            let data_start = entries_data.parse_u32_le()?;
+            let unknown_3 = entries_data.parse_u32_le()?;
+            let path = entries_data.parse_str_with_u32_le_prefix()?.to_owned();
+            let unknown_4 = entries_data.advance(16)?.to_owned();
             let created = Self::decode_timestamp(&mut entries_data)?;
             let accessed = Self::decode_timestamp(&mut entries_data)?;
             let modified = Self::decode_timestamp_short(&mut entries_data)?;
@@ -122,23 +122,23 @@ impl Wad {
 
     fn decode_timestamp(data: &mut &[u8]) -> Option<WadTimestamp> {
         Some(WadTimestamp {
-            year: data.grab_u32_le()?,
-            month: data.grab_u32_le()?,
-            day: data.grab_u32_le()?,
-            hour: data.grab_u32_le()?,
-            minute: data.grab_u32_le()?,
-            second: data.grab_u32_le()?,
-            millisecond: data.grab_u32_le()?,
+            year: data.parse_u32_le()?,
+            month: data.parse_u32_le()?,
+            day: data.parse_u32_le()?,
+            hour: data.parse_u32_le()?,
+            minute: data.parse_u32_le()?,
+            second: data.parse_u32_le()?,
+            millisecond: data.parse_u32_le()?,
         })
     }
 
     fn decode_timestamp_short(data: &mut &[u8]) -> Option<WadTimestampShort> {
         Some(WadTimestampShort {
-            year: data.grab_u32_le()?,
-            month: data.grab_u32_le()?,
-            day: data.grab_u32_le()?,
-            hour: data.grab_u32_le()?,
-            minute: data.grab_u32_le()?,
+            year: data.parse_u32_le()?,
+            month: data.parse_u32_le()?,
+            day: data.parse_u32_le()?,
+            hour: data.parse_u32_le()?,
+            minute: data.parse_u32_le()?,
         })
     }
 

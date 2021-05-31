@@ -722,6 +722,7 @@ dependencies = [
  "flate2",
  "lalrpop",
  "lalrpop-util",
+ "mint",
  "png",
  "quick-xml",
  "regex",
@@ -999,9 +1000,9 @@ dependencies = [
 
 [[package]]
 name = "glam"
-version = "0.15.1"
+version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "411e0584defa447c328f25c756ba3d0685727ecc126b46c3c1176001141cd4b6"
+checksum = "3abb554f8ee44336b72d522e0a7fe86a29e09f839a36022fa869a7dfe941a54b"
 
 [[package]]
 name = "glow"
@@ -1305,6 +1306,12 @@ dependencies = [
  "adler",
  "autocfg",
 ]
+
+[[package]]
+name = "mint"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "519df8d6856dcd4b40519947737b408f81be051fc032590659cae5d77d664185"
 
 [[package]]
 name = "mio"

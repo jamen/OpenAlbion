@@ -20,17 +20,17 @@ pub struct Bin {
 
 impl NamesBin {
     pub fn decode(mut data: &[u8]) -> Option<NamesBin> {
-        let unknown_1 = data.grab_u32_le()?;
-        let unknown_2 = data.grab_u32_le()?;
-        let names_count = data.grab_u32_le()?;
-        let unknown_3 = data.grab_u32_le()?;
-        let unknown_4 = data.grab_u32_le()?;
+        let unknown_1 = data.parse_u32_le()?;
+        let unknown_2 = data.parse_u32_le()?;
+        let names_count = data.parse_u32_le()?;
+        let unknown_3 = data.parse_u32_le()?;
+        let unknown_4 = data.parse_u32_le()?;
 
         let mut names = Vec::new();
 
         while names.len() < names_count as usize {
-            let unknown_6 = data.grab_u32_le()?;
-            let name = data.grab_str_until_nul()?.to_owned();
+            let unknown_6 = data.parse_u32_le()?;
+            let name = data.parse_str_until_nul()?.to_owned();
             names.push((unknown_6,name));
         }
 
@@ -48,17 +48,17 @@ impl Bin {
     pub fn decode(mut data: &[u8]) -> Option<Bin> {
         let starting_len = data.len();
 
-        let unknown_1 = data.grab_u8()?;
-        let unknown_2 = data.grab_u32_le()?;
-        let unknown_3 = data.grab_u32_le()?;
-        let entries_count = data.grab_u32_le()?;
+        let unknown_1 = data.parse_u8()?;
+        let unknown_2 = data.parse_u32_le()?;
+        let unknown_3 = data.parse_u32_le()?;
+        let entries_count = data.parse_u32_le()?;
 
         let mut entries = Vec::new();
 
         while entries.len() < entries_count as usize {
-            let unknown_1 = data.grab_u32_le()?;
-            let unknown_2 = data.grab_u32_le()?;
-            let unknown_3 = data.grab_u32_le()?;
+            let unknown_1 = data.parse_u32_le()?;
+            let unknown_2 = data.parse_u32_le()?;
+            let unknown_3 = data.parse_u32_le()?;
             if unknown_1 == 0xFFFF {
                 // println!("{:?} {:?} {:?}", unknown_1, unknown_2, unknown_3);
             }
@@ -67,16 +67,16 @@ impl Bin {
 
         // println!("{:?}", entries);
 
-        let chunks_count = data.grab_u32_le()?;
-        let unknown_4 = data.grab_u32_le()?;
+        let chunks_count = data.parse_u32_le()?;
+        let unknown_4 = data.parse_u32_le()?;
 
         // println!("{:?} {:?}", chunks_count, unknown_4);
 
         let mut chunks_table = Vec::new();
 
         while chunks_table.len() < chunks_count as usize {
-            let offset = data.grab_u32_le()?;
-            let unknown_1 = data.grab_u32_le()?;
+            let offset = data.parse_u32_le()?;
+            let unknown_1 = data.parse_u32_le()?;
             chunks_table.push((offset, unknown_1));
         }
 
@@ -108,7 +108,7 @@ impl Bin {
 
             break
 
-            // let initial_offset = data.grab_u16_le()?;
+            // let initial_offset = data.parse_u16_le()?;
 
             // println!("{:?} {:?}", initial_offset, file_count);
 

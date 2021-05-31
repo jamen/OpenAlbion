@@ -135,25 +135,25 @@ impl Lev {
     pub fn decode(mut data: &[u8]) -> Option<Lev> {
         let mut map_data = data.clone();
 
-        let _header_size = map_data.grab_u32_le()?;
-        let version = map_data.grab_u16_le()?;
-        let _unknown_1 = map_data.grab(3usize)?; // fabletlcmod.com: 3 bytes of padding? see checksum.
-        let _unknown_2 = map_data.grab_u32_le()?;
-        let obsolete_offset = map_data.grab_u32_le()?;
-        let _unknown_3 = map_data.grab_u32_le()?;
-        let navigation_start = map_data.grab_u32_le()?;
-        let _map_header_size = map_data.grab_u8()?;
-        let map_version = map_data.grab_u32_le()?; // fabletlcmod.com:  An 8 bit integer (with 3 bytes of padding)?
-        let unique_id_count = map_data.grab_u64_le()?;
-        let width = map_data.grab_u32_le()?;
-        let height = map_data.grab_u32_le()?;
-        let _always_true = map_data.grab_u8()?;
+        let _header_size = map_data.parse_u32_le()?;
+        let version = map_data.parse_u16_le()?;
+        let _unknown_1 = map_data.advance(3usize)?; // fabletlcmod.com: 3 bytes of padding? see checksum.
+        let _unknown_2 = map_data.parse_u32_le()?;
+        let obsolete_offset = map_data.parse_u32_le()?;
+        let _unknown_3 = map_data.parse_u32_le()?;
+        let navigation_start = map_data.parse_u32_le()?;
+        let _map_header_size = map_data.parse_u8()?;
+        let map_version = map_data.parse_u32_le()?; // fabletlcmod.com:  An 8 bit integer (with 3 bytes of padding)?
+        let unique_id_count = map_data.parse_u64_le()?;
+        let width = map_data.parse_u32_le()?;
+        let height = map_data.parse_u32_le()?;
+        let _always_true = map_data.parse_u8()?;
 
-        let heightmap_palette = map_data.grab(33792usize)?.to_owned(); // TODO: figure this out?
-        let ambient_sound_version = map_data.grab_u32_le()?;
-        let sound_themes_count = map_data.grab_u32_le()?;
-        let sound_palette = map_data.grab(33792usize)?.to_owned(); // TODO: figure this out?
-        let checksum = map_data.grab_u32_le()?; // fabletlcmod.com: only if the map header pad byte 2 is 9?
+        let heightmap_palette = map_data.advance(33792usize)?.to_owned(); // TODO: figure this out?
+        let ambient_sound_version = map_data.parse_u32_le()?;
+        let sound_themes_count = map_data.parse_u32_le()?;
+        let sound_palette = map_data.advance(33792usize)?.to_owned(); // TODO: figure this out?
+        let checksum = map_data.parse_u32_le()?; // fabletlcmod.com: only if the map header pad byte 2 is 9?
 
         let sound_themes = Self::decode_sound_themes(&mut map_data, sound_themes_count.saturating_sub(1) as usize)?;
 
@@ -163,8 +163,8 @@ impl Lev {
         let sound_cell_count = ((height / 4) * (width / 4)) as usize;
         let soundmap = Self::decode_soundmap(&mut map_data, sound_cell_count)?;
 
-        let unknown_1 = map_data.grab_u32_le()?;
-        let unknown_2 = map_data.grab_u8()?;
+        let unknown_1 = map_data.parse_u32_le()?;
+        let unknown_2 = map_data.parse_u8()?;
 
         let mut nav_data = &data[..];
 
@@ -194,7 +194,7 @@ impl Lev {
     fn decode_sound_themes(data: &mut &[u8], sound_themes_count: usize) -> Option<Vec<String>> {
         let mut sound_themes = Vec::new();
         while sound_themes.len() < sound_themes_count {
-            sound_themes.push(data.grab_str_with_u32_le_prefix()?.to_owned())
+            sound_themes.push(data.parse_str_with_u32_le_prefix()?.to_owned())
         }
         Some(sound_themes)
     }
@@ -203,18 +203,18 @@ impl Lev {
         let mut heightmap = Vec::new();
 
         while heightmap.len() < height_cell_count {
-            let size = data.grab_u32_le()?;
-            let version = data.grab_u8()?;
-            let height = data.grab_f32_le()?;
-            let _zero = data.grab_u8()?;
-            let ground_theme = (data.grab_u8()?, data.grab_u8()?, data.grab_u8()?);
-            let ground_theme_strength = (data.grab_u8()?, data.grab_u8()?);
-            let walkable = data.grab_u8()?;
-            let passover = data.grab_u8()?;
-            let sound_theme = data.grab_u8()?;
-            let _zero = data.grab_u8()?;
-            let shore = data.grab_u8()?;
-            let _unknown = data.grab_u8()?;
+            let size = data.parse_u32_le()?;
+            let version = data.parse_u8()?;
+            let height = data.parse_f32_le()?;
+            let _zero = data.parse_u8()?;
+            let ground_theme = (data.parse_u8()?, data.parse_u8()?, data.parse_u8()?);
+            let ground_theme_strength = (data.parse_u8()?, data.parse_u8()?);
+            let walkable = data.parse_u8()?;
+            let passover = data.parse_u8()?;
+            let sound_theme = data.parse_u8()?;
+            let _zero = data.parse_u8()?;
+            let shore = data.parse_u8()?;
+            let _unknown = data.parse_u8()?;
 
             heightmap.push(LevHeightCell {
                 size: size,
@@ -236,11 +236,11 @@ impl Lev {
         let mut soundmap = Vec::new();
 
         while soundmap.len() < sound_cell_count {
-            let size = data.grab_u32_le()?;
-            let version = data.grab_u8()?;
-            let sound_theme = (data.grab_u8()?, data.grab_u8()?, data.grab_u8()?);
-            let sound_theme_strength = (data.grab_u8()?, data.grab_u8()?);
-            let sound_index = data.grab_u8()?;
+            let size = data.parse_u32_le()?;
+            let version = data.parse_u8()?;
+            let sound_theme = (data.parse_u8()?, data.parse_u8()?, data.parse_u8()?);
+            let sound_theme_strength = (data.parse_u8()?, data.parse_u8()?);
+            let sound_index = data.parse_u8()?;
 
             soundmap.push(LevSoundCell {
                 size: size,
@@ -257,28 +257,28 @@ impl Lev {
     fn decode_navigation(data: &mut &[u8], navigation_start: usize) -> Option<LevNavigation> {
         let header_data = &mut data.get(navigation_start..)?;
 
-        let sections_start = header_data.grab_u32_le()?;
-        let sections_count = header_data.grab_u32_le()?;
+        let sections_start = header_data.parse_u32_le()?;
+        let sections_count = header_data.parse_u32_le()?;
 
         let mut sections = Vec::new();
 
         // println!("sections count {:?}", sections_count);
 
         while sections.len() < sections_count as usize {
-            let name = header_data.grab_str_with_u32_le_prefix()?.to_owned();
-            let start = header_data.grab_u32_le()?;
+            let name = header_data.parse_str_with_u32_le_prefix()?.to_owned();
+            let start = header_data.parse_u32_le()?;
 
             // println!("{:?} {:?}", name, start);
 
             let mut section_data = &mut data.get(start as usize ..)?;
 
-            let size = section_data.grab_u32_le()?;
-            let version = section_data.grab_u32_le()?;
-            let width = section_data.grab_f32_le()?;
-            let height = section_data.grab_f32_le()?;
-            let unknown_1 = section_data.grab_u32_le()?; // fabletlcmod.com: Number of Levels, see navigation nodes
+            let size = section_data.parse_u32_le()?;
+            let version = section_data.parse_u32_le()?;
+            let width = section_data.parse_f32_le()?;
+            let height = section_data.parse_f32_le()?;
+            let unknown_1 = section_data.parse_u32_le()?; // fabletlcmod.com: Number of Levels, see navigation nodes
             let interactive_nodes = Self::decode_interactive_nodes(&mut section_data)?;
-            let subsets_count = section_data.grab_u32_le()?;
+            let subsets_count = section_data.parse_u32_le()?;
             let nodes = Self::decode_nodes(&mut section_data)?;
 
             sections.push(LevNavigationSection {
@@ -303,13 +303,13 @@ impl Lev {
     }
 
     fn decode_interactive_nodes(data: &mut &[u8]) -> Option<Vec<LevInteractiveNode>> {
-        let nodes_count = data.grab_u32_le()?;
+        let nodes_count = data.parse_u32_le()?;
         let mut interactive_nodes = Vec::new();
 
         while interactive_nodes.len() < nodes_count as usize {
-            let x = data.grab_f32_le()?;
-            let y = data.grab_f32_le()?;
-            let subset = data.grab_u32_le()?;
+            let x = data.parse_f32_le()?;
+            let y = data.parse_f32_le()?;
+            let subset = data.parse_u32_le()?;
             interactive_nodes.push(LevInteractiveNode { x, y, subset });
         }
 
@@ -317,7 +317,7 @@ impl Lev {
     }
 
     fn decode_nodes(mut data: &mut &[u8]) -> Option<Vec<LevLevelNode>> {
-        let nodes_count = data.grab_u32_le()?;
+        let nodes_count = data.parse_u32_le()?;
         let mut nodes = Vec::new();
 
         while nodes.len() < nodes_count as usize {
@@ -328,9 +328,9 @@ impl Lev {
     }
 
     fn decode_node(data: &mut &[u8]) -> Option<LevLevelNode> {
-        let unknown_1 = data.grab_u8()? == 1;
-        let unknown_2 = data.grab_u8()? == 1;
-        let unknown_3 = data.grab_u8()? == 1;
+        let unknown_1 = data.parse_u8()? == 1;
+        let unknown_2 = data.parse_u8()? == 1;
+        let unknown_3 = data.parse_u8()? == 1;
 
         if (unknown_1, unknown_2, unknown_3) == (false, true, true) {
             return Some(LevLevelNode::Short {
@@ -340,19 +340,19 @@ impl Lev {
             })
         }
 
-        let unknown_4 = data.grab_u8()? == 1;
-        let subset = data.grab_u16_le()?;
-        let x = data.grab_f32_le()?;
-        let y = data.grab_f32_le()?;
-        let id = data.grab_u32_le()?;
+        let unknown_4 = data.parse_u8()? == 1;
+        let subset = data.parse_u16_le()?;
+        let x = data.parse_f32_le()?;
+        let y = data.parse_f32_le()?;
+        let id = data.parse_u32_le()?;
 
         match (unknown_1, unknown_2, unknown_3, unknown_4) {
             (false, _, _, false) => {
                 let children = (
-                    data.grab_u32_le()?,
-                    data.grab_u32_le()?,
-                    data.grab_u32_le()?,
-                    data.grab_u32_le()?,
+                    data.parse_u32_le()?,
+                    data.parse_u32_le()?,
+                    data.parse_u32_le()?,
+                    data.parse_u32_le()?,
                 );
 
                 Some(LevLevelNode::Regular {
@@ -368,14 +368,14 @@ impl Lev {
                 })
             },
             (false, _, _, true) => {
-                let unknown_5 = data.grab_u32_le()?;
-                let unknown_6 = data.grab_u8()?;
+                let unknown_5 = data.parse_u32_le()?;
+                let unknown_6 = data.parse_u8()?;
 
-                let children_count = data.grab_u32_le()? as usize;
+                let children_count = data.parse_u32_le()? as usize;
                 let mut children = Vec::new();
 
                 while children_count > children.len() {
-                    children.push(data.grab_u32_le()?);
+                    children.push(data.parse_u32_le()?);
                 }
 
                 Some(LevLevelNode::Extended1 {
@@ -393,21 +393,21 @@ impl Lev {
                 })
             },
             (true, _, _, true) => {
-                let unknown_5 = data.grab_u32_le()?;
-                let unknown_6 = data.grab_u8()?;
+                let unknown_5 = data.parse_u32_le()?;
+                let unknown_6 = data.parse_u8()?;
 
-                let children_1_count = data.grab_u32_le()? as usize;
+                let children_1_count = data.parse_u32_le()? as usize;
                 let mut children_1 = Vec::new();
 
                 while children_1_count > children_1.len() {
-                    children_1.push(data.grab_u32_le()?);
+                    children_1.push(data.parse_u32_le()?);
                 }
 
-                let children_2_count = data.grab_u32_le()? as usize;
+                let children_2_count = data.parse_u32_le()? as usize;
                 let mut children_2 = Vec::new();
 
                 while children_2_count > children_2.len() {
-                    children_2.push(data.grab_u64_le()?);
+                    children_2.push(data.parse_u64_le()?);
                 }
 
                 Some(LevLevelNode::Extended2 {

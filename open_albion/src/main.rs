@@ -1,3 +1,15 @@
+// -Navigation data generation/ editing.
+// -Village preference path paint.
+// -Environment and sound theme painting.
+// -All markers visible that have they're respective meshes. (All cbox markers are just an "M" sign meanwhile the editor utilises different meshes. Also cbox doesnt display certain markers like village markers and many others.)
+// -Being able to view only certain section objects on a map.
+// -A built in FinalAlbion.wld editor. (Things that need to be edited manually to be in the editor like the minimap, region def of a map, map name, map coordinates, levels contained or levels that can be seen.)
+// -"SeesMap" levels in a region to be drawn in the editor, not just "ContainMap" levels. (This is if the editor is like cbox which displays just 1 region and not the whole world)
+// -The ability to set and replay camera spline points and timelines for camera scripted spline and fixed cameras.
+// -The ability to quickly set all the object's angles to 0. (Straighten the object.)
+// -Having an easy access to an object script in the .tng if manual editing is requiered.
+// -Ability to connect and generate region entrance UIDs
+
 mod renderer;
 mod state;
 mod view;

@@ -1,10 +1,10 @@
 mod anim;
-mod mesh;
+mod model;
 mod text;
 mod texture;
 
 pub use anim::*;
-pub use mesh::*;
+pub use model::*;
 pub use text::*;
 pub use texture::*;
 
@@ -135,10 +135,10 @@ impl Big {
 
         source.read_exact(&mut header).ok()?;
 
-        let magic_number = header.grab_str(4)?.to_owned();
+        let magic_number = header.parse_str(4)?.to_owned();
 
-        let version = header.grab_u32_le()?;
-        let banks_start = header.grab_u32_le()?;
+        let version = header.parse_u32_le()?;
+        let banks_start = header.parse_u32_le()?;
 
         let banks = Self::decode_banks(source, banks_start, kind)?;
 
@@ -158,28 +158,28 @@ impl Big {
         source.read_to_end(&mut banks_source).ok()?;
 
         let mut banks_source = &banks_source[..];
-        let banks_count = banks_source.grab_u32_le()?;
+        let banks_count = banks_source.parse_u32_le()?;
         let mut banks = Vec::new();
 
         while banks.len() < banks_count as usize {
-            let name = std::str::from_utf8(banks_source.grab_until_nul()?).ok()?.to_owned();
-            let unknown_1 = banks_source.grab_u32_le()?;
-            let entries_count = banks_source.grab_u32_le()?;
-            let index_start = banks_source.grab_u32_le()?;
-            let index_size = banks_source.grab_u32_le()?;
-            let block_size = banks_source.grab_u32_le()?;
+            let name = std::str::from_utf8(banks_source.parse_until_nul()?).ok()?.to_owned();
+            let unknown_1 = banks_source.parse_u32_le()?;
+            let entries_count = banks_source.parse_u32_le()?;
+            let index_start = banks_source.parse_u32_le()?;
+            let index_size = banks_source.parse_u32_le()?;
+            let block_size = banks_source.parse_u32_le()?;
 
             let mut index_source = &mut vec![0; index_size as usize][..];
 
             source.seek(SeekFrom::Start(index_start as u64)).ok()?;
             source.read_exact(&mut index_source).ok()?;
 
-            let file_types_count = index_source.grab_u32_le()?;
+            let file_types_count = index_source.parse_u32_le()?;
             let mut file_type_counts = HashMap::new();
 
             while file_type_counts.len() < file_types_count as usize {
-                let a = index_source.grab_u32_le()?;
-                let b = index_source.grab_u32_le()?;
+                let a = index_source.parse_u32_le()?;
+                let b = index_source.parse_u32_le()?;
                 file_type_counts.insert(a, b);
             }
 
@@ -204,26 +204,26 @@ impl Big {
         let mut entries = Vec::new();
 
         while entries.len() < entries_count as usize {
-            let unknown_1 = index_source.grab_u32_le()?;
-            let id = index_source.grab_u32_le()?;
-            let group = index_source.grab_u32_le()?;
-            let data_size = index_source.grab_u32_le()?;
-            let data_start = index_source.grab_u32_le()?;
-            let unknown_2 = index_source.grab_u32_le()?;
-            let name = index_source.grab_str_with_u32_le_prefix()?.to_owned();
-            let crc = index_source.grab_u32_le()?;
+            let unknown_1 = index_source.parse_u32_le()?;
+            let id = index_source.parse_u32_le()?;
+            let group = index_source.parse_u32_le()?;
+            let data_size = index_source.parse_u32_le()?;
+            let data_start = index_source.parse_u32_le()?;
+            let unknown_2 = index_source.parse_u32_le()?;
+            let name = index_source.parse_str_with_u32_le_prefix()?.to_owned();
+            let crc = index_source.parse_u32_le()?;
 
             // println!("{:?} {:?}", name, group);
 
-            let sources_count = index_source.grab_u32_le()?;
+            let sources_count = index_source.parse_u32_le()?;
             let mut sources = Vec::new();
 
             while sources.len() < sources_count as usize {
-                sources.push(index_source.grab_str_with_u32_le_prefix()?.to_owned());
+                sources.push(index_source.parse_str_with_u32_le_prefix()?.to_owned());
             }
 
-            let info_size = index_source.grab_u32_le()?;
-            let info_data = index_source.grab(info_size as usize)?;
+            let info_size = index_source.parse_u32_le()?;
+            let info_data = index_source.advance(info_size as usize)?;
             let info = match (kind, group) {
                 // (BigKind::Graphics, 0) => BigInfo::Unknown,
                 // Normal mesh?
@@ -281,29 +281,29 @@ impl Big {
     fn decode_mesh_info(mut data: &[u8]) -> Option<BigMeshInfo> {
         // println!("{:?}", data);
 
-        let physics_mesh = data.grab_u32_le()?;
+        let physics_mesh = data.parse_u32_le()?;
 
         let mut unknown_1 = Vec::new();
         for _ in 0..10 {
-            unknown_1.push(data.grab_f32_le()?)
+            unknown_1.push(data.parse_f32_le()?)
         }
 
-        let compressed_lod_sizes_count = data.grab_u32_le()?;
+        let compressed_lod_sizes_count = data.parse_u32_le()?;
 
         let mut compressed_lod_sizes = Vec::new();
         for _ in 0..compressed_lod_sizes_count as usize {
-            compressed_lod_sizes.push(data.grab_u32_le()?);
+            compressed_lod_sizes.push(data.parse_u32_le()?);
         }
 
-        // let unknown_2 = info_data.grab_u32_le()?;
+        // let unknown_2 = info_data.parse_u32_le()?;
 
         // println!("unknown_2 {:?}", unknown_2);
 
-        let texture_ids_count = data.grab_u32_le()?;
+        let texture_ids_count = data.parse_u32_le()?;
 
         let mut texture_ids = Vec::new();
         for _ in 0..texture_ids_count as usize {
-            texture_ids.push(data.grab_u32_le()?);
+            texture_ids.push(data.parse_u32_le()?);
         }
 
         // println!("phyiscs_mesh {:?}", physics_mesh);
@@ -323,21 +323,21 @@ impl Big {
     }
 
     fn decode_texture_info(mut info_data: &[u8]) -> Option<BigTextureInfo> {
-        let width = info_data.grab_u16_le()?;
-        let height = info_data.grab_u16_le()?;
-        let depth = info_data.grab_u16_le()?;
-        let frame_width = info_data.grab_u16_le()?;
-        let frame_height = info_data.grab_u16_le()?;
-        let frame_count = info_data.grab_u16_le()?;
-        let dxt_compression = info_data.grab_u16_le()?;
-        let unknown_1 = info_data.grab_u16_le()?;
-        let alpha_channel_count = info_data.grab_u8()?;
-        let mipmaps = info_data.grab_u8()?;
-        let unknown_2 = info_data.grab_u16_le()?;
-        let first_mipmap_size = info_data.grab_u32_le()?;
-        let first_mipmap_compressed_size = info_data.grab_u32_le()?;
-        let unknown_3 = info_data.grab_u16_le()?;
-        let unknown_4 = info_data.grab_u32_le()?;
+        let width = info_data.parse_u16_le()?;
+        let height = info_data.parse_u16_le()?;
+        let depth = info_data.parse_u16_le()?;
+        let frame_width = info_data.parse_u16_le()?;
+        let frame_height = info_data.parse_u16_le()?;
+        let frame_count = info_data.parse_u16_le()?;
+        let dxt_compression = info_data.parse_u16_le()?;
+        let unknown_1 = info_data.parse_u16_le()?;
+        let alpha_channel_count = info_data.parse_u8()?;
+        let mipmaps = info_data.parse_u8()?;
+        let unknown_2 = info_data.parse_u16_le()?;
+        let first_mipmap_size = info_data.parse_u32_le()?;
+        let first_mipmap_compressed_size = info_data.parse_u32_le()?;
+        let unknown_3 = info_data.parse_u16_le()?;
+        let unknown_4 = info_data.parse_u32_le()?;
 
         Some(BigTextureInfo {
             width,

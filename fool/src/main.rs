@@ -6,9 +6,7 @@ use std::ffi::OsStr;
 
 use pico_args::Arguments;
 
-use fable_data::{Wad,Big,BigInfo,Texture,Lev,Stb,StbLev,NamesBin,Bin,Mesh,Tng};
-
-
+use fable_data::{Wad,Big,BigInfo,Texture,Lev,Stb,StbLev,NamesBin,Bin,Model,Tng};
 
 fn main() {
     let mut args = Arguments::from_env();
@@ -195,8 +193,98 @@ fn big(mut args: Arguments, path: PathBuf) {
                                 let tex = Texture::decode(&data, info).unwrap();
                             },
                             BigInfo::Mesh(info) => {
-                                let mesh = Mesh::decode(&data, info).unwrap();
-                                // println!("{:#?}\n{:#?}", info, mesh);
+                                use fable_data::Bytes;
+
+                                let model = Model::decode(&data, info).unwrap();
+
+                                for primitive in &model.primitives[..1] {
+                                    // println!("vertex count {:?}", primitive.vertex_count);
+
+                                    for static_block in &primitive.static_blocks {
+                                        let vertex_view = &primitive.vertices[static_block.base.start_index as usize .. primitive.vertex_count as usize];
+
+                                        for vertex in vertex_view {
+                                            println!("v {} {} {}", vertex.pos.x, vertex.pos.y, vertex.pos.z);
+                                        }
+
+                                        for vertex in vertex_view {
+                                            println!("vt {} {}", (vertex.uv.x / 24.0 + 1.0) / 2.0, (vertex.uv.y / 24.0 + 1.0) / 2.0);
+                                        }
+
+                                        let mut index_data = primitive.index_buffer.as_slice();
+
+                                        if static_block.base.is_strip {
+                                            for _ in 0 .. primitive.index_count - 2 {
+                                                let v1 = index_data.parse_u16_le().unwrap();
+                                                let mut peek = index_data.clone();
+                                                let v2 = peek.parse_u16_le().unwrap();
+                                                let v3 = peek.parse_u16_le().unwrap();
+                                                println!("f {:?} {:?} {:?}", v1 + 1, v2 + 1, v3 + 1);
+                                            }
+                                        } else {
+                                            for _ in 0 .. primitive.index_count / 3 {
+                                                let v1 = index_data.parse_u16_le().unwrap();
+                                                let v2 = index_data.parse_u16_le().unwrap();
+                                                let v3 = index_data.parse_u16_le().unwrap();
+                                                println!("f {:?} {:?} {:?}", v1 + 1, v2 + 1, v3 + 1);
+                                            }
+                                        }
+                                    }
+
+                                    for animated_block in &primitive.animated_blocks {
+                                        let vertex_view = &primitive.vertices[animated_block.base.start_index as usize .. primitive.vertex_count as usize];
+
+                                        for vertex in vertex_view {
+                                            println!("v {} {} {}", vertex.pos.x, vertex.pos.y, vertex.pos.z);
+                                        }
+
+                                        for vertex in vertex_view {
+                                            println!("vt {} {}", (vertex.uv.x / 24.0 + 1.0) / 2.0, (vertex.uv.y / 24.0 + 1.0) / 2.0);
+                                        }
+
+                                        let mut index_data = primitive.index_buffer.as_slice();
+
+                                        if animated_block.base.is_strip {
+                                            for _ in 0 .. primitive.index_count - 2 {
+                                                let v1 = index_data.parse_u16_le().unwrap();
+                                                let mut peek = index_data.clone();
+                                                let v2 = peek.parse_u16_le().unwrap();
+                                                let v3 = peek.parse_u16_le().unwrap();
+                                                println!("f {:?} {:?} {:?}", v1 + 1, v2 + 1, v3 + 1);
+                                            }
+                                        } else {
+                                            for _ in 0 .. primitive.index_count / 3 {
+                                                let v1 = index_data.parse_u16_le().unwrap();
+                                                let v2 = index_data.parse_u16_le().unwrap();
+                                                let v3 = index_data.parse_u16_le().unwrap();
+                                                println!("f {:?} {:?} {:?}", v1 + 1, v2 + 1, v3 + 1);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // let mut index_data = &mesh.index_buffer[..];
+
+                                // for vertex in mesh.vertices {
+                                //     println!("v {} {} {}", vertex.pos.x, vertex.pos.x, vertex.pos.x)
+                                // }
+
+                                // if mesh.unknown_1 > 0 {
+                                //     for _ in 0 .. mesh.index_count / 3 {
+                                //         let v1 = index_data.parse_u16_le().unwrap();
+                                //         let v2 = index_data.parse_u16_le().unwrap();
+                                //         let v3 = index_data.parse_u16_le().unwrap();
+                                //         println!("f {:?} {:?} {:?}", v1 + 1, v2 + 1, v3 + 1);
+                                //     }
+                                // } else {
+                                //     for _ in 0 .. mesh.index_count - 2 {
+                                //         let v1 = index_data.parse_u16_le().unwrap();
+                                //         let mut peek = index_data.clone();
+                                //         let v2 = peek.parse_u16_le().unwrap();
+                                //         let v3 = peek.parse_u16_le().unwrap();
+                                //         println!("f {:?} {:?} {:?}", v1 + 1, v2 + 1, v3 + 1);
+                                //     }
+                                // }
                             }
                             _ => {}
                         }
@@ -215,7 +303,7 @@ fn big(mut args: Arguments, path: PathBuf) {
                                 // let tex = Texture::decode(&data, info).unwrap();
                             },
                             BigInfo::Mesh(info) => {
-                                let mesh = Mesh::decode(&data, info).unwrap();
+                                let model = Model::decode(&data, info).unwrap();
                                 // if
                                 //     // mesh.helper_dummies_compressed > 0 &&
                                 //     // mesh.helper_dummies_compressed < 80 &&
@@ -320,30 +408,30 @@ fn big(mut args: Arguments, path: PathBuf) {
     //             // println!("{}", text);
     //             // print!("\"{}\",", text);
 
-    //             let len = entry_data.grab_u32_le().unwrap();
-    //             let script = entry_data.grab_str(len as usize).unwrap().to_owned();
+    //             let len = entry_data.parse_u32_le().unwrap();
+    //             let script = entry_data.parse_str(len as usize).unwrap().to_owned();
     //             let script = script.replace("\"", "\"\"");
 
     //             // print!("\"{}\",", script);
 
-    //             let len = entry_data.grab_u32_le().unwrap();
-    //             let target = entry_data.grab_str(len as usize).unwrap().to_owned();
+    //             let len = entry_data.parse_u32_le().unwrap();
+    //             let target = entry_data.parse_str(len as usize).unwrap().to_owned();
     //             let target = target.replace("\"", "\"\"");
 
     //             // print!("\"{}\",", target);
 
-    //             let len = entry_data.grab_u32_le().unwrap();
-    //             let id = entry_data.grab_str(len as usize).unwrap().to_owned();
+    //             let len = entry_data.parse_u32_le().unwrap();
+    //             let id = entry_data.parse_str(len as usize).unwrap().to_owned();
     //             let id = id.replace("\"", "\"\"");
 
     //             // print!("\"{}\",", id);
 
-    //             let actions_count = entry_data.grab_u32_le().unwrap();
+    //             let actions_count = entry_data.parse_u32_le().unwrap();
     //             let mut actions = Vec::new();
 
     //             for _ in 0..actions_count {
-    //                 let id = entry_data.grab_u32_le().unwrap();
-    //                 let name = entry_data.grab_str_until_nul().unwrap().to_owned();
+    //                 let id = entry_data.parse_u32_le().unwrap();
+    //                 let name = entry_data.parse_str_until_nul().unwrap().to_owned();
     //                 actions.push((id, name));
     //             }
 
@@ -351,7 +439,7 @@ fn big(mut args: Arguments, path: PathBuf) {
 
     //             // print!("\"{}\"\n", unknown_1);
 
-    //             // let sound = entry_data.grab_str(len as usize).unwrap().to_owned();
+    //             // let sound = entry_data.parse_str(len as usize).unwrap().to_owned();
     //             // let sound = sound.replace("\"", "\"\"");
 
     //             // println!("\"{:?}\", \"{:?}\", \"{:?}\", \"{:?}\", \"{:?}\", \"{:?}\"", text,
