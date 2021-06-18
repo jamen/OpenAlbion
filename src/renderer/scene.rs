@@ -6,7 +6,7 @@ use glam::Mat4;
 
 pub struct SceneRenderer {
     mvp_buffer: wgpu::Buffer,
-    model: Model,
+    // model: Model,
 }
 
 pub struct Model {

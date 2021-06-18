@@ -22,10 +22,6 @@ mod stb;
 mod wad;
 mod wld;
 
-use lalrpop_util::lalrpop_mod;
-
-lalrpop_mod!(pub tng_parser);
-
 // pub use bba::*;
 // pub use bbm::*;
 pub use big::*;
@@ -49,3 +45,7 @@ pub use stb::*;
 // pub use tng::*;
 pub use wad::*;
 pub use wld::*;
+
+use lalrpop_util::lalrpop_mod;
+
+lalrpop_mod!(pub tng_parser, "/data/wad/tng_parser.rs");

@@ -1,8 +1,11 @@
 mod renderer;
 mod state;
+mod data;
 
 pub use renderer::*;
 pub use state::*;
+pub use data::*;
+
 use winit::dpi::LogicalPosition;
 
 use std::time::Instant;
@@ -27,7 +30,7 @@ pub struct WindowSystem {
 impl WindowSystem {
     pub fn create(event_loop: &EventLoop<()>) -> Self {
         let window = WindowBuilder::new()
-            .with_title("OPen Albion")
+            .with_title("Open Albion")
             .with_inner_size(winit::dpi::LogicalSize::new(1024.0, 768.0))
             // TODO: .with_fullscreen(Some(Fullscreen::Borderless(event_loop.primary_monitor())))
             .with_resizable(true)

@@ -1,6 +1,6 @@
-mod xml;
+// mod xml;
 
-pub use xml::*;
+// pub use xml::*;
 
 use std::io::Read;
 
@@ -14,9 +14,7 @@ pub struct NamesBin {
     pub names: Vec<(u32, String)>,
 }
 
-pub struct Bin {
-
-}
+pub struct Bin {}
 
 impl NamesBin {
     pub fn decode(mut data: &[u8]) -> Option<NamesBin> {
@@ -31,7 +29,7 @@ impl NamesBin {
         while names.len() < names_count as usize {
             let unknown_6 = data.parse_u32_le()?;
             let name = data.parse_str_until_nul()?.to_owned();
-            names.push((unknown_6,name));
+            names.push((unknown_6, name));
         }
 
         Some(NamesBin {
@@ -90,12 +88,8 @@ impl Bin {
             println!("{:?}", idk);
 
             let compressed_chunk = match chunks_table.get(i + 1).and_then(|x| Some(x.0)) {
-                Some(end) => {
-                    &data[start as usize .. end as usize]
-                },
-                None => {
-                    continue
-                }
+                Some(end) => &data[start as usize..end as usize],
+                None => continue,
             };
 
             let mut decompressor = flate2::bufread::ZlibDecoder::new(compressed_chunk);
@@ -106,7 +100,7 @@ impl Bin {
 
             // println!("{:?}", &bytes[..1024]);
 
-            break
+            break;
 
             // let initial_offset = data.parse_u16_le()?;
 
