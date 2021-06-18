@@ -15,3 +15,4 @@ fontdue = "0.5.2"
 glam = "0.15.1"
 thunderdome = "0.4.1"
 vk-shader-macros = "0.2.7"
+tokio = { version = "1.6.1", features = [ "rt-multi-thread" ] }

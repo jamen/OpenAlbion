@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use winit::event::{Event,WindowEvent,DeviceEvent,VirtualKeyCode,KeyboardInput,ElementState};
-
-use crate::View;
+use winit::event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
 
 pub struct State {
     pub keys: HashMap<VirtualKeyCode, KeyCondition>,
@@ -12,7 +10,7 @@ pub struct State {
 #[derive(Debug)]
 pub enum KeyCondition {
     First,
-    Repeat
+    Repeat,
 }
 
 #[derive(Debug)]
@@ -32,37 +30,42 @@ impl State {
 
     pub fn handle_window_event(&mut self, event: &Event<'static, ()>) {
         match event {
-            Event::WindowEvent { event: window_event, .. } => {
-                match window_event {
-                    WindowEvent::KeyboardInput {
-                        input: KeyboardInput { virtual_keycode: Some(virtual_keycode), state: element_state, .. },
-                        ..
-                    } => {
-                        match element_state {
-                            ElementState::Pressed if self.keys.contains_key(&virtual_keycode) => {
-                                self.keys.insert(*virtual_keycode, KeyCondition::Repeat);
-                                self.on_key_repeat(*virtual_keycode);
-                            },
-                            ElementState::Pressed => {
-                                self.keys.insert(*virtual_keycode, KeyCondition::First);
-                                self.on_key_pressed(*virtual_keycode);
-                            },
-                            ElementState::Released => {
-                                self.keys.remove(&virtual_keycode);
-                                self.on_key_released(*virtual_keycode);
-                            },
-                        }
-                    },
-                    WindowEvent::Focused(true) => self.on_focus(),
-                    WindowEvent::Focused(false) => self.on_blur(),
-                    _ => {}
-                }
+            Event::WindowEvent {
+                event: window_event,
+                ..
+            } => match window_event {
+                WindowEvent::KeyboardInput {
+                    input:
+                        KeyboardInput {
+                            virtual_keycode: Some(virtual_keycode),
+                            state: element_state,
+                            ..
+                        },
+                    ..
+                } => match element_state {
+                    ElementState::Pressed if self.keys.contains_key(&virtual_keycode) => {
+                        self.keys.insert(*virtual_keycode, KeyCondition::Repeat);
+                        self.on_key_repeat(*virtual_keycode);
+                    }
+                    ElementState::Pressed => {
+                        self.keys.insert(*virtual_keycode, KeyCondition::First);
+                        self.on_key_pressed(*virtual_keycode);
+                    }
+                    ElementState::Released => {
+                        self.keys.remove(&virtual_keycode);
+                        self.on_key_released(*virtual_keycode);
+                    }
+                },
+                WindowEvent::Focused(true) => self.on_focus(),
+                WindowEvent::Focused(false) => self.on_blur(),
+                _ => {}
             },
-            Event::DeviceEvent { event: device_event, .. } => {
-                match device_event {
-                    DeviceEvent::MouseMotion { delta } => self.on_mouse_motion(*delta),
-                    _ => {}
-                }
+            Event::DeviceEvent {
+                event: device_event,
+                ..
+            } => match device_event {
+                DeviceEvent::MouseMotion { delta } => self.on_mouse_motion(*delta),
+                _ => {}
             },
             _ => {}
         }
