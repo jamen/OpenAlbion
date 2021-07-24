@@ -1,8 +1,4 @@
-use lalrpop_util::lalrpop_mod;
-
-lalrpop_mod!(wld_parser, "/wld_parser.rs");
-
-pub use wld_parser::WldParser;
+pub use crate::wld_parser::WldParser;
 
 #[derive(Debug, PartialEq)]
 pub struct Wld {
@@ -94,11 +90,11 @@ impl Wld {
 //         )
 //     }
 
-//     fn decode_raw_section<'a>(start: &'a str, end: &'a str) -> impl Fn(&'a [u8]) -> IResult<&[u8], (Field, Vec<Field>, Field), Error> {
-//         move |input: &[u8]| {
+//     fn decode_raw_section<'a>(start: &'a str, end: &'a str) -> impl Fn(&'a [u8]) ->
+// IResult<&[u8], (Field, Vec<Field>, Field), Error> {         move |input: &[u8]| {
 //             let (input, start_field) = decode_field_tagged(start)(input)?;
-//             let (input, (fields, end_field)) = many_till(decode_field, decode_field_tagged(end))(input)?;
-//             Ok((input, (start_field, fields, end_field)))
+//             let (input, (fields, end_field)) = many_till(decode_field,
+// decode_field_tagged(end))(input)?;             Ok((input, (start_field, fields, end_field)))
 //         }
 //     }
 
@@ -147,7 +143,8 @@ impl Wld {
 //     }
 
 //     fn decode_map(input: &[u8]) -> IResult<&[u8], WldMap, Error> {
-//         let (input, (new_map, fields, end_map)) = Self::decode_raw_section("NewMap", "EndMap")(input)?;
+//         let (input, (new_map, fields, end_map)) = Self::decode_raw_section("NewMap",
+// "EndMap")(input)?;
 
 //         let new_map = match new_map.value {
 //             Value::Integer(x) => x,
@@ -190,8 +187,8 @@ impl Wld {
 //             None => return Err(nom::Err::Error(Error::MissingRequiredField))
 //         };
 
-//         let loaded_on_player_proximity = match fields.iter().find(|x| x.name == "LoadedOnPlayerProximity") {
-//             Some(Field { value: Value::Bool(x), .. }) => *x,
+//         let loaded_on_player_proximity = match fields.iter().find(|x| x.name ==
+// "LoadedOnPlayerProximity") {             Some(Field { value: Value::Bool(x), .. }) => *x,
 //             Some(_) => return Err(nom::Err::Error(Error::InvalidValue)),
 //             None => return Err(nom::Err::Error(Error::MissingRequiredField))
 //         };
@@ -223,7 +220,8 @@ impl Wld {
 //     }
 
 //     fn decode_region(input: &[u8]) -> IResult<&[u8], WldRegion, Error> {
-//         let (input, (new_region, fields, end_region)) = Self::decode_raw_section("NewRegion", "EndRegion")(input)?;
+//         let (input, (new_region, fields, end_region)) = Self::decode_raw_section("NewRegion",
+// "EndRegion")(input)?;
 
 //         let new_region = match new_region.value {
 //             Value::Integer(x) => x,
@@ -290,14 +288,14 @@ impl Wld {
 //             None => return Err(nom::Err::Error(Error::MissingRequiredField))
 //         };
 
-//         let name_graphic_offset_x = match fields.iter().find(|f| f.name == "NameGraphicOffsetX") {
-//             Some(Field { value: Value::Float(x), .. }) => *x,
+//         let name_graphic_offset_x = match fields.iter().find(|f| f.name == "NameGraphicOffsetX")
+// {             Some(Field { value: Value::Float(x), .. }) => *x,
 //             Some(_) => return Err(nom::Err::Error(Error::InvalidValue)),
 //             None => return Err(nom::Err::Error(Error::MissingRequiredField))
 //         };
 
-//         let name_graphic_offset_y = match fields.iter().find(|f| f.name == "NameGraphicOffsetY") {
-//             Some(Field { value: Value::Float(x), .. }) => *x,
+//         let name_graphic_offset_y = match fields.iter().find(|f| f.name == "NameGraphicOffsetY")
+// {             Some(Field { value: Value::Float(x), .. }) => *x,
 //             Some(_) => return Err(nom::Err::Error(Error::InvalidValue)),
 //             None => return Err(nom::Err::Error(Error::MissingRequiredField))
 //         };
@@ -306,8 +304,8 @@ impl Wld {
 //             .iter()
 //             .filter_map(|field| {
 //                 match (field.name.as_str(), field.indices.as_slice(), &field.value) {
-//                     ("MiniMapRegionExitTextOffsetX", [ Index::Box(Value::Name(name)) ], Value::Float(value)) => {
-//                         Some((name.clone(), value.clone()))
+//                     ("MiniMapRegionExitTextOffsetX", [ Index::Box(Value::Name(name)) ],
+// Value::Float(value)) => {                         Some((name.clone(), value.clone()))
 //                     },
 //                     _ => None,
 //                 }
@@ -318,8 +316,8 @@ impl Wld {
 //             .iter()
 //             .filter_map(|field| {
 //                 match (field.name.as_str(), field.indices.as_slice(), &field.value) {
-//                     ("MiniMapRegionExitTextOffsetX", [ Index::Box(Value::Name(name)) ], Value::Float(value)) => {
-//                         Some((name.clone(), value.clone()))
+//                     ("MiniMapRegionExitTextOffsetX", [ Index::Box(Value::Name(name)) ],
+// Value::Float(value)) => {                         Some((name.clone(), value.clone()))
 //                     },
 //                     _ => None,
 //                 }

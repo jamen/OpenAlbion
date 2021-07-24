@@ -5,8 +5,7 @@ use std::path::Path;
 use crate::Bytes;
 
 #[derive(Debug)]
-pub struct Big<T: Read + Seek> {
-    source: T,
+pub struct Big {
     pub kind: BigKind,
     pub magic_number: String,
     pub version: u32,
@@ -97,8 +96,11 @@ pub struct BigAnimationInfo {
     unknown: Vec<u8>,
 }
 
-impl<T: Read + Seek> Big<T> {
-    pub fn decode_reader_with_path<P: AsRef<Path>>(source: T, path: P) -> Option<Self> {
+impl Big {
+    pub fn decode_reader_with_path<T: Read + Seek, P: AsRef<Path>>(
+        source: T,
+        path: P,
+    ) -> Option<Self> {
         let path = path.as_ref();
 
         let file_name = path
@@ -125,7 +127,7 @@ impl<T: Read + Seek> Big<T> {
         Self::decode_reader(source, kind)
     }
 
-    pub fn decode_reader(mut source: T, kind: BigKind) -> Option<Self> {
+    pub fn decode_reader<T: Read + Seek>(mut source: T, kind: BigKind) -> Option<Self> {
         let mut header = &mut [0; 12][..];
 
         source.read_exact(&mut header).ok()?;
@@ -272,7 +274,6 @@ impl<T: Read + Seek> Big<T> {
         }
 
         Some(Big {
-            source,
             kind,
             magic_number,
             version,
@@ -376,11 +377,15 @@ impl<T: Read + Seek> Big<T> {
         })
     }
 
-    pub fn read_entry(&mut self, entry: &BigEntry, buf: &mut [u8]) -> Result<(), IoError> {
+    pub fn read_entry<T: Read + Seek>(
+        mut source: T,
+        entry: &BigEntry,
+        buf: &mut [u8],
+    ) -> Result<(), IoError> {
         let max_len = buf.len();
         let read_buf = &mut buf[..(entry.data_size as usize).min(max_len)];
-        self.source.seek(SeekFrom::Start(entry.data_start as u64))?;
-        self.source.read_exact(read_buf)?;
+        source.seek(SeekFrom::Start(entry.data_start as u64))?;
+        source.read_exact(read_buf)?;
         Ok(())
     }
 }

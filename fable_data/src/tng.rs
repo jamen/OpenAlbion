@@ -1,8 +1,4 @@
-use lalrpop_util::lalrpop_mod;
-
-lalrpop_mod!(tng_parser, "/tng_parser.rs");
-
-pub use tng_parser::TngParser;
+pub use crate::tng_parser::TngParser;
 
 #[derive(Debug)]
 pub struct Tng {

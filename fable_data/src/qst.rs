@@ -1,8 +1,4 @@
-use lalrpop_util::lalrpop_mod;
-
-lalrpop_mod!(qst_parser, "/qst_parser.rs");
-
-pub use qst_parser::QstParser;
+pub use crate::qst_parser::QstParser;
 
 pub struct Qst {}
 

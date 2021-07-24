@@ -1,3 +1,12 @@
+use lalrpop_util::lalrpop_mod;
+
+lalrpop_mod!(bncfg_parser, "/bncfg_parser.rs");
+lalrpop_mod!(gtg_parser, "/gtg_parser.rs");
+lalrpop_mod!(ini_parser, "/ini_parser.rs");
+lalrpop_mod!(qst_parser, "/qst_parser.rs");
+lalrpop_mod!(tng_parser, "/tng_parser.rs");
+lalrpop_mod!(wld_parser, "/wld_parser.rs");
+
 pub mod anim;
 pub mod big;
 pub mod bncfg;

@@ -1,8 +1,4 @@
-use lalrpop_util::lalrpop_mod;
-
-lalrpop_mod!(gtg_parser, "/gtg_parser.rs");
-
-pub use gtg_parser::GtgParser;
+pub use crate::gtg_parser::GtgParser;
 
 pub struct Gtg {}
 
@@ -59,9 +55,9 @@ impl Gtg {
 //         Ok((input, tng))
 //     }
 
-//     /// This is a variation of `fable::script::decode_tagged_field` because "NEWMAP" and "ENDMAP" don't use semicolons.
-//     pub fn decode_gtg_field_named(name: &'static str) -> impl Fn(&[u8]) -> IResult<&[u8], ScriptField, Error> {
-//         move |input: &[u8]| {
+//     /// This is a variation of `fable::script::decode_tagged_field` because "NEWMAP" and "ENDMAP"
+// don't use semicolons.     pub fn decode_gtg_field_named(name: &'static str) -> impl Fn(&[u8]) ->
+// IResult<&[u8], ScriptField, Error> {         move |input: &[u8]| {
 //             let (input, _line_ending) = many0(line_ending)(input)?;
 //             let (input, reference) = ScriptReference::decode_reference(input)?;
 //             let (input, _space) = opt(tag(" "))(input)?;
@@ -70,8 +66,8 @@ impl Gtg {
 
 //            let field_name = match reference {
 //                 ScriptReference::Name(x) => x,
-//                 ScriptReference::ScriptAccessor(_) => return Err(nom::Err::Error(Error::Fable(ErrorKind::InvalidInstruction))),
-//             };
+//                 ScriptReference::ScriptAccessor(_) => return
+// Err(nom::Err::Error(Error::Fable(ErrorKind::InvalidInstruction))),             };
 
 //             if field_name != name {
 //                 return Err(nom::Err::Error(Error::Fable(ErrorKind::InvalidTagName)));

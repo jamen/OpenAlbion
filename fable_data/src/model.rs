@@ -113,7 +113,7 @@ pub struct Primitive {
     pub vertex_size: u32,
     pub padding: u32,
     pub vertices: Vec<Vertex>,
-    pub index_buffer: Vec<u8>,
+    pub indices: Vec<u16>,
     pub cloth_primitives: Vec<ClothPrimitive>,
 }
 
@@ -149,8 +149,8 @@ pub struct PrimitiveAnimatedBlock {
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct Vertex {
-    pub pos: [f32; 3],
-    pub normal: [f32; 3],
+    pub pos: [f32; 4],
+    pub normal: [f32; 4],
     pub uv: [f32; 2],
 }
 
@@ -545,7 +545,13 @@ impl Model {
         let index_count = data.parse_u32_le()?;
         let init_flags = data.parse_u32_le()?;
 
-        // The game takes init_flags and  copies all but the third bit into init_flags. It checks if animated_block_count is not equal to zero and sets vertex_stream_flags to 1. It checks if the second bit in init_flags is set and enables the second bit in vertex_stream_flags. It checks if the 5th bit in confusing_bits is set and sets the 3rd bit in vertex_stream_flags.
+        println!("init_flags {:0>32b}", init_flags);
+        println!("_animated_block_count > 0 {:?}", _animated_block_count > 0);
+
+        // The game takes init_flags and copies all but the third bit into init_flags. It checks if
+        // animated_block_count is not equal to zero and sets vertex_stream_flags to 1. It checks if
+        // the second bit in init_flags is set and enables the second bit in vertex_stream_flags. It
+        // checks if the 5th bit in init_flags is set and sets the 3rd bit in vertex_stream_flags.
 
         // let init_flags = init_flags & 0xfffffffb;
         // let mut vertex_stream_flags = if animated_block_count != 0 { 1 } else { 0 };
@@ -602,10 +608,24 @@ impl Model {
 
         let index_level_size = 2 * index_count as usize;
 
-        let index_buffer = Self::decode_semi_compressed(
+        let original_index_buffer = Self::decode_semi_compressed(
             data,
             index_level_size + index_level_size * repeating_mesh_reps as usize,
         )?;
+
+        let original_indices = bytemuck::cast_slice::<_, u16>(&original_index_buffer);
+
+        let mut indices = if index_count > 0 {
+            let mut indices = Vec::with_capacity(index_count as usize * 3 - 2);
+
+            for i in 0..index_count - 2 {
+                indices.extend_from_slice(&original_indices[i as usize..=i as usize + 2]);
+            }
+
+            indices
+        } else {
+            original_indices.to_vec()
+        };
 
         let cloth_primitives_count = data.parse_u32_le()?;
 
@@ -633,7 +653,7 @@ impl Model {
             vertex_size,
             padding,
             vertices,
-            index_buffer,
+            indices,
             cloth_primitives,
         })
     }
@@ -689,7 +709,7 @@ impl Model {
     ) -> Option<Vertex> {
         let mut pos = if (animated
             && ((init_flags & INIT_FLAG_PACKED == 0) && (init_flags & INIT_FLAG_PACKED_POS != 0)))
-            && (!animated
+            || (!animated
                 && ((init_flags & INIT_FLAG_PACKED == 0)
                     || (init_flags & INIT_FLAG_PACKED_POS != 0)))
         {
@@ -699,11 +719,13 @@ impl Model {
             arr
         };
 
+        let mut pos = [pos[0], pos[1], pos[2], 0.0];
+
         pos[0] = pos[0] * pos_scale[0] + pos_bias[0];
         pos[1] = pos[1] * pos_scale[1] + pos_bias[1];
         pos[2] = pos[2] * pos_scale[2] + pos_bias[2];
 
-        eprintln!("pos {:?}", pos);
+        // eprintln!("pos {:?}", pos);
 
         if animated {
             let _d3dcolor_1 = data.parse_u32_le()?;
@@ -714,13 +736,6 @@ impl Model {
             );
         }
 
-        let normal = if init_flags & INIT_FLAG_PACKED == 0 {
-            data.parse_vector3_f32_le()?.into()
-        } else {
-            let arr: [f32; 3] = data.parse_vector3_packed()?.into();
-            arr
-        };
-
         let uv = if init_flags & INIT_FLAG_PACKED == 0 {
             data.parse_vector2_f32_le()?.into()
         } else {
@@ -728,18 +743,33 @@ impl Model {
             [uv[0].into(), uv[1].into()]
         };
 
-        if init_flags & INIT_FLAG_EXTRA_VECTOR != 0 {
-            let _extra: Vector4<f32> = if init_flags & INIT_FLAG_PACKED == 0 {
-                data.parse_vector4_f32_le()?.into()
+        let mut normal = if init_flags & INIT_FLAG_EXTRA_VECTOR != 0 {
+            let normal = if init_flags & INIT_FLAG_PACKED == 0 {
+                data.parse_vector3_f32_le()?.into()
             } else {
-                let x = data.parse_u16_le()? as f32 * 0.00003052;
-                let y = data.parse_u16_le()? as f32 * 0.00003052;
-                let z = data.parse_u16_le()? as f32 * 0.00003052;
-                let w = data.parse_u16_le()? as f32 * 0.00003052;
-                [x, y, z, w].into()
+                let arr: [f32; 3] = data.parse_vector3_packed()?.into();
+                arr
             };
-            eprintln!("Warning: Unused extra vector {:?}", _extra);
-        }
+
+            [normal[0], normal[1], normal[2], 0.0]
+        } else {
+            Default::default()
+        };
+
+        // let normal = [normal[0], normal[1], normal[2], 0.0];
+
+        // if init_flags & INIT_FLAG_EXTRA_VECTOR != 0 {
+        //     let _extra: Vector4<f32> = if init_flags & INIT_FLAG_PACKED == 0 {
+        //         data.parse_vector4_f32_le()?.into()
+        //     } else {
+        //         let x = data.parse_u16_le()? as f32 * 0.00003052;
+        //         let y = data.parse_u16_le()? as f32 * 0.00003052;
+        //         let z = data.parse_u16_le()? as f32 * 0.00003052;
+        //         let w = data.parse_u16_le()? as f32 * 0.00003052;
+        //         [x, y, z, w].into()
+        //     };
+        //     eprintln!("Warning: Unused extra vector {:?}", _extra);
+        // }
 
         Some(Vertex { pos, normal, uv })
     }

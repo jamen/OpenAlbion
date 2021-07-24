@@ -1,8 +1,4 @@
-use lalrpop_util::lalrpop_mod;
-
-lalrpop_mod!(bncfg_parser, "/bncfg_parser.rs");
-
-pub use bncfg_parser::BncfgParser;
+pub use crate::bncfg_parser::BncfgParser;
 
 use std::collections::HashMap;
 

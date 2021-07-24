@@ -1,8 +1,4 @@
-use lalrpop_util::lalrpop_mod;
-
-lalrpop_mod!(ini_parser, "/ini_parser.rs");
-
-pub use ini_parser::IniParser;
+pub use crate::ini_parser::IniParser;
 
 pub struct Ini {}
 
