@@ -2,10 +2,10 @@ use crate::{BigTextureInfo, Bytes};
 
 #[derive(Debug)]
 pub struct Texture {
-    width: u16,
-    height: u16,
-    dxt_compression: u16,
-    frames: Vec<Vec<u8>>,
+    pub width: u16,
+    pub height: u16,
+    pub dxt_compression: u16,
+    pub frames: Vec<Vec<u8>>,
 }
 
 impl Texture {
@@ -24,9 +24,13 @@ impl Texture {
 
             let first_mipmap_compressed = data.advance(size as usize)?;
 
-            let data =
+            let mut texture_data =
                 crate::lzo::decompress(first_mipmap_compressed, info.first_mipmap_size as usize)
                     .ok()?;
+
+            let trail = data.advance(3)?;
+
+            texture_data.extend_from_slice(&trail);
 
             // let bc_format = match info.dxt_compression {
             //     31 => { bcndecode::BcnEncoding::Bc1 },
@@ -34,12 +38,14 @@ impl Texture {
             //     _ => { bcndecode::BcnEncoding::Bc2 }, // Idk but default to this
             // };
 
-            // let data = bcndecode::decode(&data, info.width as usize, info.height as usize, bc_format, bcndecode::BcnDecoderFormat::RGBA).unwrap();
+            // let data = bcndecode::decode(&data, info.width as usize, info.height as usize,
+            // bc_format, bcndecode::BcnDecoderFormat::RGBA).unwrap();
 
             // let stdout = std::io::stdout();
             // let mut stdout_writer = stdout.lock();
 
-            // let mut png_encoder = png::Encoder::new(&mut stdout_writer, info.width as u32, info.height as u32);
+            // let mut png_encoder = png::Encoder::new(&mut stdout_writer, info.width as u32,
+            // info.height as u32);
 
             // png_encoder.set_color(png::ColorType::RGBA);
             // png_encoder.set_depth(png::BitDepth::Eight);
@@ -48,41 +54,41 @@ impl Texture {
 
             // writer.write_image_data(&data);
 
-            frames.push(data);
+            frames.push(texture_data);
         }
 
         // let data = &data[..252];
 
-        let bc_format = match info.dxt_compression {
-            31 => bcndecode::BcnEncoding::Bc1,
-            32 => bcndecode::BcnEncoding::Bc2,
-            _ => bcndecode::BcnEncoding::Bc2, // Idk but default to this
-        };
+        // let bc_format = match info.dxt_compression {
+        //     31 => bcndecode::BcnEncoding::Bc1,
+        //     32 => bcndecode::BcnEncoding::Bc2,
+        //     _ => bcndecode::BcnEncoding::Bc2, // Idk but default to this
+        // };
 
-        let data = bcndecode::decode(
-            &data,
-            info.width as usize / 2,
-            info.height as usize / 2,
-            bc_format,
-            bcndecode::BcnDecoderFormat::RGBA,
-        )
-        .unwrap();
+        // let data = bcndecode::decode(
+        //     &data,
+        //     info.width as usize / 2,
+        //     info.height as usize / 2,
+        //     bc_format,
+        //     bcndecode::BcnDecoderFormat::RGBA,
+        // )
+        // .unwrap();
 
-        let stdout = std::io::stdout();
-        let mut stdout_writer = stdout.lock();
+        // let stdout = std::io::stdout();
+        // let mut stdout_writer = stdout.lock();
 
-        let mut png_encoder = png::Encoder::new(
-            &mut stdout_writer,
-            info.width as u32 / 2,
-            info.height as u32 / 2,
-        );
+        // let mut png_encoder = png::Encoder::new(
+        //     &mut stdout_writer,
+        //     info.width as u32 / 2,
+        //     info.height as u32 / 2,
+        // );
 
-        png_encoder.set_color(png::ColorType::RGBA);
-        png_encoder.set_depth(png::BitDepth::Eight);
+        // png_encoder.set_color(png::ColorType::RGBA);
+        // png_encoder.set_depth(png::BitDepth::Eight);
 
-        let mut writer = png_encoder.write_header().unwrap();
+        // let mut writer = png_encoder.write_header().unwrap();
 
-        writer.write_image_data(&data);
+        // writer.write_image_data(&data);
 
         // if info.mipmaps > 1 {
 

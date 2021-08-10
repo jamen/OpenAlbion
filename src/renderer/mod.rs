@@ -27,13 +27,6 @@ pub struct Renderer {
     pub scene_renderer: SceneRenderer,
 }
 
-/// Maybe this can be refactored with one big wgpu::Buffer and wgpu::BufferSlice's.
-pub struct Mesh {
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: Option<wgpu::Buffer>,
-    count: u32,
-}
-
 impl Renderer {
     pub async fn create(window: &Window, state: &State) -> Self {
         let base = RendererBase::create(window).await;
@@ -65,7 +58,6 @@ impl Renderer {
 
         let command_bufs = [
             self.scene_renderer.render(&self.base, &frame, &state),
-            // self.gui_renderer.render(&params),
         ];
 
         self.base.queue.submit(IntoIter::new(command_bufs));

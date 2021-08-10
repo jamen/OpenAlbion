@@ -1,11 +1,15 @@
 mod renderer;
 mod state;
 
-use glam::Quat;
+use glam::{Quat, Vec3};
 use renderer::*;
 use state::*;
 
-use winit::{event::{DeviceEvent, ElementState, Event, KeyboardInput, WindowEvent}, event_loop::{ControlFlow, EventLoop}, window::WindowBuilder};
+use std::f32::consts::PI;
+
+use winit::{event::{DeviceEvent, ElementState, Event, KeyboardInput, MouseScrollDelta, WindowEvent}, event_loop::{ControlFlow, EventLoop}, window::WindowBuilder};
+
+use glam::Mat3;
 
 use native_dialog::FileDialog;
 
@@ -57,8 +61,8 @@ async fn main() {
                     ElementState::Released => state.input.key_up(virtual_keycode, scancode),
                 },
                 WindowEvent::MouseInput { button, state: element_state, .. } => match element_state {
-                    ElementState::Pressed => state.input.mouse_up(button),
-                    ElementState::Released => state.input.mouse_down(button),
+                    ElementState::Pressed => state.input.mouse_down(button),
+                    ElementState::Released => state.input.mouse_up(button),
                 },
                 WindowEvent::ModifiersChanged(modifiers) => state.input.modifiers = modifiers,
                 WindowEvent::CursorLeft { .. } => state.input.cursor_position = None,
@@ -74,14 +78,25 @@ async fn main() {
                 _ => {}
             },
             Event::DeviceEvent { event, device_id: _device_id } => match event {
+                DeviceEvent::MouseWheel { delta } => match delta {
+                    MouseScrollDelta::LineDelta(x, y) => {
+                        if state.input.cursor_position.is_some() {
+                            state.camera.mouse_wheel((x, y));
+                        }
+                        // state.camera.pos = (state.camera.pos.normalize() * (x * 5.0));
+                    }
+                    MouseScrollDelta::PixelDelta(pos) => {
+                        if state.input.cursor_position.is_some() {
+                            state.camera.mouse_wheel((pos.x as f32, pos.y as f32));
+                        }
+                        // state.camera.pos = (state.camera.pos.normalize() * (pos.x as f32 * 5.0));
+                    }
+                },
                 DeviceEvent::MouseMotion { delta } => {
                     if state.input.mouse_left.is_some() {
-                        state.camera_rotation =
-                            state.camera_rotation +
-                            Quat::from_rotation_x(delta.0 as f32) +
-                            Quat::from_rotation_y(delta.1 as f32);
+                        state.camera.mouse_motion(delta);
                     }
-                }
+                },
                 _ => {},
             },
             Event::MainEventsCleared => {

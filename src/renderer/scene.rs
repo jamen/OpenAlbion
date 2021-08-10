@@ -1,62 +1,71 @@
+use std::borrow::Cow;
 use std::convert::TryInto;
 use std::fs::File;
 use std::mem;
 use std::num::NonZeroU64;
 
-use crate::{include_glsl, Mesh, RendererBase, State};
+use crate::state::ArcballCamera;
+use crate::{include_glsl, RendererBase, State};
 
 use crevice::std430::{AsStd430, Std430};
 use fable_data::Big;
-use glam::{Mat4, Vec3, Vec4};
+use glam::{Mat3, Mat4, Quat, Vec3, Vec4};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{vertex_attr_array, VertexState};
 
 pub struct SceneRenderer {
-    pipeline: wgpu::RenderPipeline,
-    mvp_buffer: wgpu::Buffer,
+    model_pipeline: wgpu::RenderPipeline,
+    wire_pipeline: wgpu::RenderPipeline,
+    transform_buffer: wgpu::Buffer,
+    depth_texture: wgpu::TextureView,
     bind_group: wgpu::BindGroup,
-    graphics_data: fable_data::Big,
+    material_bind_group_layout: wgpu::BindGroupLayout,
     model: Model,
 }
 
 pub struct Model {
+    vector_clock: usize,
+    materials: Vec<Material>,
     primitives: Vec<Primitive>,
 }
 
+/// Maybe this can be refactored so the meshes are stored in a single wgpu::Buffer and accessed with
+/// wgpu::BufferSlice's.
 pub struct Primitive {
-    mesh: Mesh,
-    material: Material,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: Option<wgpu::Buffer>,
+    count: u32,
+    wire_index_buffer: wgpu::Buffer,
+    material_id: usize,
 }
 
 pub struct Material {
-    // base_color: wgpu::Texture,
+    base_color: wgpu::Texture,
+    bind_group: wgpu::BindGroup,
 }
 
 impl SceneRenderer {
+    pub const VERTEX_BUFFER_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {
+        step_mode: wgpu::InputStepMode::Vertex,
+        array_stride: mem::size_of::<fable_data::Vertex>() as u64,
+        attributes: &wgpu::vertex_attr_array![
+            0 => Float32x3,
+            1 => Float32x3,
+            2 => Float32x2
+        ],
+    };
+
     pub fn create(base: &RendererBase, state: &State) -> Self {
-        // let mvp_buffer = base.device.create_buffer(&wgpu::BufferDescriptor {
-        //     label: None,
-        //     size: mem::size_of::<glam::Mat4>().try_into().unwrap(),
-        //     usage: wgpu::BufferUsage::UNIFORM,
-        //     mapped_at_creation: false,
-        // });
-
-        let mvp_matrix =
-            Mat4::perspective_infinite_lh(
-                90.0f32.to_radians(),
-                base.swap_chain_descriptor.width as f32 / base.swap_chain_descriptor.height as f32,
-                0.05,
-            ) * Mat4::look_at_lh(state.camera_position, Vec3::new(0.0, 0.0, 0.0), Vec3::Z);
-
-        let mvp_matrix: mint::ColumnMatrix4<f32> = mvp_matrix.into();
-
-        let mvp_matrix = mvp_matrix.as_std430();
-
-        let mvp_buffer = base.device.create_buffer_init(&BufferInitDescriptor {
+        let transform_buffer = base.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            contents: mvp_matrix.as_bytes(),
+            size: mem::size_of::<glam::Mat4>().try_into().unwrap(),
             usage: wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::UNIFORM,
+            mapped_at_creation: false,
         });
+
+        Self::write_transform_buffer(&base, &transform_buffer, &state.camera);
+
+        let depth_texture = Self::create_depth_texture(&base);
 
         let bind_group_layout =
             base.device
@@ -64,7 +73,7 @@ impl SceneRenderer {
                     label: None,
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: wgpu::ShaderStage::VERTEX,
+                        visibility: wgpu::ShaderStage::VERTEX_FRAGMENT,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
@@ -74,156 +83,438 @@ impl SceneRenderer {
                     }],
                 });
 
+        let material_bind_group_layout =
+            base.device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: None,
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStage::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                                multisampled: false,
+                            },
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStage::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler {
+                                filtering: true,
+                                comparison: false,
+                            },
+                            count: None,
+                        },
+                    ],
+                });
+
         let bind_group = base.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
             layout: &bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: mvp_buffer.as_entire_binding(),
+                resource: transform_buffer.as_entire_binding(),
             }],
         });
 
         let pipeline_layout = base
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("scene_render_pipeline_layout"),
-                bind_group_layouts: &[&bind_group_layout],
+                label: Some("scene_pipeline_layout"),
+                bind_group_layouts: &[&bind_group_layout, &material_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
-        let pipeline = base
+        // Disable shader validation on release
+        let flags = if cfg!(debug_assertions) {
+            wgpu::ShaderFlags::VALIDATION
+        } else {
+            wgpu::ShaderFlags::empty()
+        };
+
+        // Load this renderer's shader(s)
+        let shader = base
             .device
-            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("scene_render_pipeline"),
-                layout: Some(&pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &base
-                        .device
-                        .create_shader_module(&include_glsl!("src/shaders/scene.vert", kind: vert)),
-                    entry_point: "main",
-                    buffers: &[wgpu::VertexBufferLayout {
-                        step_mode: wgpu::InputStepMode::Vertex,
-                        array_stride: mem::size_of::<fable_data::Vertex>().try_into().unwrap(),
-                        attributes: &wgpu::vertex_attr_array![
-                            0 => Float32x4,
-                            1 => Float32x4,
-                            2 => Float32x2
-                        ],
-                    }],
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &base
-                        .device
-                        .create_shader_module(&include_glsl!("src/shaders/scene.frag", kind: frag)),
-                    entry_point: "main",
-                    targets: &[wgpu::ColorTargetState {
-                        format: wgpu::TextureFormat::Bgra8Unorm,
-                        blend: None,
-                        write_mask: wgpu::ColorWrite::ALL,
-                    }],
-                }),
-                primitive: wgpu::PrimitiveState::default(),
-                multisample: wgpu::MultisampleState::default(),
-                depth_stencil: None,
+            .create_shader_module(&wgpu::ShaderModuleDescriptor {
+                label: None,
+                source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("./scene.wgsl"))),
+                flags,
             });
 
-        let graphics_path = state.fable_dir.join("data/graphics/graphics.big");
+        // Create pipeline
+        let model_pipeline = base
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("scene_model_pipeline"),
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "vs_main",
+                    buffers: &[Self::VERTEX_BUFFER_LAYOUT],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "fs_main",
+                    targets: &[base.swap_chain_descriptor.format.into()],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    cull_mode: Some(wgpu::Face::Back),
+                    ..Default::default()
+                },
+                multisample: wgpu::MultisampleState::default(),
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth32Float,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
+            });
 
-        println!("{:?}", graphics_path);
+        // Create pipeline
+        let wire_pipeline = base
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("scene_wire_pipeline"),
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "vs_wire",
+                    buffers: &[Self::VERTEX_BUFFER_LAYOUT],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "fs_wire",
+                    targets: &[base.swap_chain_descriptor.format.into()],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::LineList,
+                    cull_mode: Some(wgpu::Face::Back),
+                    ..Default::default()
+                },
+                multisample: wgpu::MultisampleState::default(),
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth32Float,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }),
+            });
 
-        let mut graphics_file = File::open(&graphics_path).unwrap();
-
-        let graphics_data =
-            Big::decode_reader_with_path(&mut graphics_file, &graphics_path).unwrap();
-
-        let model = Self::load_default_model(&base, &graphics_data, &mut graphics_file);
+        let model = Self::create_model(&base, &state, &material_bind_group_layout);
 
         Self {
-            pipeline,
-            mvp_buffer,
-            graphics_data,
+            model_pipeline,
+            wire_pipeline,
+            transform_buffer,
             bind_group,
+            material_bind_group_layout,
+            depth_texture,
             model,
         }
     }
 
-    fn load_default_model(
+    // fn create_depth_texture() -> wgpu::Texture {}
+
+    // This is function should be replaced by UI.
+    fn create_model(
         base: &RendererBase,
-        graphics_data: &fable_data::Big,
-        graphics_file: &mut File,
+        state: &State,
+        material_bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Model {
-        let model_entry =
-            &graphics_data.entries[*graphics_data.entries_by_name.get("MESH_CARROT_02").unwrap()];
+        let entry_id = *state
+            .graphics
+            .entries_by_name
+            .get(&state.selected_model_name)
+            .unwrap();
 
-        let mut model_data = vec![0; model_entry.data_size as usize];
+        let entry = &state.graphics.entries[entry_id];
 
-        fable_data::Big::read_entry(graphics_file, &model_entry, &mut model_data)
-            .expect("read entry");
+        let mut model_data = vec![0; entry.data_size as usize];
 
-        let model_info = if let fable_data::BigInfo::Mesh(model_info) = &model_entry.info {
-            Some(model_info)
-        } else {
-            None
+        fable_data::Big::read_entry(&state.graphics_file, &entry, &mut model_data)
+            .expect("read model entry");
+
+        let mut primitives = Vec::new();
+        let mut materials = Vec::new();
+
+        if let fable_data::BigInfo::Mesh(model_info) = &entry.info {
+            if let Some(model) = fable_data::Model::decode(&model_data, &model_info) {
+                primitives.reserve(model.primitives.len());
+
+                log::debug!("model.name {:?}", model.name);
+                log::debug!("model.animated {:?}", model.animated);
+                log::debug!("model.bounding_sphere {:?}", model.bounding_sphere);
+                log::debug!("model.bounding_box {:?}", model.bounding_box);
+                // log::debug!("model.helper_points {:?}", model.helper_points);
+                // log::debug!("model.helper_dummies {:?}", model.helper_dummies);
+                // log::debug!("model.helper_point_names {:?}", model.helper_point_names);
+                // log::debug!("model.helper_dummy_names {:?}", model.helper_dummy_names);
+                log::debug!("model.material_count {:?}", model.material_count);
+                log::debug!("model.primitive_count {:?}", model.primitive_count);
+                // log::debug!("model.bone_names {:?}", model.bone_names);
+                // log::debug!("model.bones {:?}", model.bones);
+                // log::debug!("model.bone_keyframes {:?}", model.bone_keyframes);
+                // log::debug!("model.bone_transforms {:?}", model.bone_transforms);
+                log::debug!("model.cloth {:?}", model.cloth);
+                log::debug!("model.unknown4 {:?}", model.unknown4);
+                log::debug!("model.unknown5 {:?}", model.unknown5);
+                log::debug!("model.transform_matrix {:?}", model.transform_matrix);
+                log::debug!("model.materials {:#?}", model.materials);
+
+                for (i, material) in model.materials.iter().enumerate() {
+                    if material.degenerate_triangles > 0 {
+                        continue;
+                    }
+
+                    let texture_entry = state
+                        .textures
+                        .entries
+                        .iter()
+                        .find(|entry| entry.id == material.base_texture_id)
+                        .expect("texture not found");
+
+                    let mut texture_data = vec![0; texture_entry.data_size as usize];
+
+                    fable_data::Big::read_entry(
+                        &state.textures_file,
+                        &texture_entry,
+                        &mut texture_data,
+                    )
+                    .expect("read texture entry");
+
+                    log::debug!("texture_entry.info {:#?}", texture_entry.info);
+
+                    if let fable_data::BigInfo::Texture(texture_info) = &texture_entry.info {
+                        if let Some(texture) =
+                            fable_data::Texture::decode(&texture_data, &texture_info)
+                        {
+                            let base_color = base.device.create_texture_with_data(
+                                &base.queue,
+                                &wgpu::TextureDescriptor {
+                                    label: None,
+                                    size: wgpu::Extent3d {
+                                        width: texture_info.frame_width as u32,
+                                        height: texture_info.frame_height as u32,
+                                        depth_or_array_layers: 1,
+                                    },
+                                    mip_level_count: 1,
+                                    sample_count: 1,
+                                    dimension: wgpu::TextureDimension::D2,
+                                    format: wgpu::TextureFormat::Bc1RgbaUnorm,
+                                    usage: wgpu::TextureUsage::COPY_DST
+                                        | wgpu::TextureUsage::SAMPLED,
+                                },
+                                &texture.frames[0][..],
+                            );
+
+                            let base_color_view = base_color.create_view(&Default::default());
+
+                            let base_color_sampler =
+                                base.device.create_sampler(&wgpu::SamplerDescriptor {
+                                    address_mode_u: wgpu::AddressMode::Repeat,
+                                    address_mode_v: wgpu::AddressMode::Repeat,
+                                    address_mode_w: wgpu::AddressMode::Repeat,
+                                    mag_filter: wgpu::FilterMode::Nearest,
+                                    min_filter: wgpu::FilterMode::Linear,
+                                    mipmap_filter: wgpu::FilterMode::Nearest,
+                                    ..Default::default()
+                                });
+
+                            let bind_group =
+                                base.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                                    label: None,
+                                    layout: &material_bind_group_layout,
+                                    entries: &[
+                                        wgpu::BindGroupEntry {
+                                            binding: 0,
+                                            resource: wgpu::BindingResource::TextureView(
+                                                &base_color_view,
+                                            ),
+                                        },
+                                        wgpu::BindGroupEntry {
+                                            binding: 1,
+                                            resource: wgpu::BindingResource::Sampler(
+                                                &base_color_sampler,
+                                            ),
+                                        },
+                                    ],
+                                });
+
+                            materials.push(Material {
+                                base_color,
+                                bind_group,
+                            });
+                        } else {
+                            panic!("texture parsing failed");
+                        }
+                    } else {
+                        panic!("texture info missing");
+                    }
+                }
+
+                for (i, primitive) in model.primitives.iter().enumerate() {
+                    log::debug!(
+                        "primitive[{:?}].material_index {:?}",
+                        i,
+                        primitive.material_index
+                    );
+                    log::debug!(
+                        "primitive[{:?}].repeating_mesh_reps {:?}",
+                        i,
+                        primitive.repeating_mesh_reps
+                    );
+                    log::debug!(
+                        "primitive[{:?}].bounding_sphere {:?}",
+                        i,
+                        primitive.bounding_sphere
+                    );
+                    log::debug!(
+                        "primitive[{:?}].average_texture_stretch {:?}",
+                        i,
+                        primitive.average_texture_stretch
+                    );
+                    log::debug!(
+                        "primitive[{:?}].vertex_count {:?}",
+                        i,
+                        primitive.vertex_count
+                    );
+                    log::debug!(
+                        "primitive[{:?}].triangle_count {:?}",
+                        i,
+                        primitive.triangle_count
+                    );
+                    log::debug!("primitive[{:?}].index_count {:?}", i, primitive.index_count);
+                    log::debug!("primitive[{:?}].init_flags {:?}", i, primitive.init_flags);
+                    log::debug!(
+                        "primitive[{:?}].static_block_count {:?}",
+                        i,
+                        primitive.static_block_count
+                    );
+                    log::debug!(
+                        "primitive[{:?}].animated_block_count {:?}",
+                        i,
+                        primitive.animated_block_count
+                    );
+                    log::debug!(
+                        "primitive[{:?}].static_blocks {:#?}",
+                        i,
+                        primitive.static_blocks
+                    );
+                    log::debug!(
+                        "primitive[{:?}].animated_blocks {:#?}",
+                        i,
+                        primitive.animated_blocks
+                    );
+                    log::debug!("primitive[{:?}].pos_bias {:?}", i, primitive.pos_bias);
+                    log::debug!("primitive[{:?}].pos_scale {:?}", i, primitive.pos_scale);
+                    log::debug!("primitive[{:?}].vertex_size {:?}", i, primitive.vertex_size);
+                    log::debug!("primitive[{:?}].padding {:?}", i, primitive.padding);
+                    log::debug!(
+                        "primitive[{:?}].vertices.len() = {:?}",
+                        i,
+                        primitive.vertices.len()
+                    );
+                    log::debug!(
+                        "primitive[{:?}].indices.len() = {:?}",
+                        i,
+                        primitive.indices.len()
+                    );
+
+                    // log::debug!("primitive[{:?}].indices = {:?}", i, primitive.indices);
+
+                    let vertex_buffer = base.device.create_buffer_init(&BufferInitDescriptor {
+                        label: None,
+                        contents: bytemuck::cast_slice(&primitive.vertices),
+                        usage: wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::VERTEX,
+                    });
+
+                    let index_buffer = if primitive.indices.len() > 0 {
+                        Some(base.device.create_buffer_init(&BufferInitDescriptor {
+                            label: None,
+                            contents: bytemuck::cast_slice(&primitive.indices),
+                            usage: wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::INDEX,
+                        }))
+                    } else {
+                        None
+                    };
+
+                    let mut wire_indices: Vec<u16> =
+                        Vec::with_capacity(primitive.indices.len() * 2);
+
+                    for (i, chunk) in primitive.indices.chunks(3).enumerate() {
+                        if let &[i1, i2, i3] = chunk {
+                            wire_indices.extend_from_slice(&[i1, i2, i1, i2, i2, i3]);
+                        }
+                    }
+
+                    let wire_index_buffer = base.device.create_buffer_init(&BufferInitDescriptor {
+                        label: None,
+                        contents: bytemuck::cast_slice(&wire_indices),
+                        usage: wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::INDEX,
+                    });
+
+                    primitives.push(Primitive {
+                        vertex_buffer,
+                        index_buffer,
+                        count: primitive.index_count,
+                        material_id: primitive.material_index as usize,
+                        wire_index_buffer,
+                    });
+                }
+            }
         }
-        .unwrap();
 
-        let model = fable_data::Model::decode(&model_data, &model_info).expect("decode model");
-
-        let primitives = model
-            .primitives
-            .iter()
-            .map(|primitive| {
-                let vertex_buffer = base.device.create_buffer_init(&BufferInitDescriptor {
-                    label: None,
-                    contents: bytemuck::cast_slice(&primitive.vertices),
-                    usage: wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::VERTEX,
-                });
-
-                let index_buffer = Some(base.device.create_buffer_init(&BufferInitDescriptor {
-                    label: None,
-                    contents: bytemuck::cast_slice(&primitive.indices),
-                    usage: wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::INDEX,
-                }));
-
-                let mesh = Mesh {
-                    vertex_buffer,
-                    index_buffer,
-                    count: primitive.index_count,
-                };
-
-                // let base_color = base.device.create_texture_with_data(
-                //     &base.queue,
-                //     &wgpu::TextureDescriptor {
-                //         label: None
-                //     },
-                //     &[],
-                // );
-
-                let material = Material {};
-
-                Primitive { mesh, material }
-            })
-            .collect::<Vec<_>>();
-
-        Model { primitives }
+        Model {
+            vector_clock: state.model_vector_clock,
+            materials,
+            primitives,
+        }
     }
 
-    pub fn write_mvp_matrix(&mut self, base: &RendererBase, state: &State) {
-        let focal_point = state.camera_position + (state.camera_rotation * Vec3::X);
+    pub fn create_depth_texture(base: &RendererBase) -> wgpu::TextureView {
+        let depth_texture = base.device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size: wgpu::Extent3d {
+                width: base.swap_chain_descriptor.width,
+                height: base.swap_chain_descriptor.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsage::RENDER_ATTACHMENT | wgpu::TextureUsage::SAMPLED,
+        });
 
-        let proj = Mat4::perspective_infinite_lh(
-            90.0f32.to_radians(),
-            base.swap_chain_descriptor.width as f32 / base.swap_chain_descriptor.height as f32,
-            0.05,
-        );
+        depth_texture.create_view(&wgpu::TextureViewDescriptor::default())
+    }
 
-        let look_at = Mat4::look_at_lh(state.camera_position, focal_point, Vec3::Z);
+    pub fn write_transform_buffer(
+        base: &RendererBase,
+        buffer: &wgpu::Buffer,
+        camera: &ArcballCamera,
+    ) {
+        let camera_pos = camera.rotation * Vec3::Z * camera.distance + camera.focus;
 
-        let mvp_matrix: mint::ColumnMatrix4<f32> = (proj * look_at).into();
-        let mvp_matrix = mvp_matrix.as_std430();
+        let width = base.swap_chain_descriptor.width as f32;
+        let height = base.swap_chain_descriptor.height as f32;
 
-        base.queue
-            .write_buffer(&self.mvp_buffer, 0, mvp_matrix.as_bytes());
+        let aspect = width / height;
+        let fov = 90.0f32;
+        let z_near = 0.05f32;
+
+        let proj = Mat4::perspective_infinite_lh(fov.to_radians(), aspect, z_near);
+        let look_at = Mat4::look_at_lh(camera_pos, camera.focus, Vec3::Y);
+
+        let transform = proj * look_at;
+        let transform: mint::ColumnMatrix4<f32> = transform.into();
+        let transform = transform.as_std430();
+
+        base.queue.write_buffer(buffer, 0, transform.as_bytes());
     }
 
     pub fn render(
@@ -232,11 +523,15 @@ impl SceneRenderer {
         frame: &wgpu::SwapChainFrame,
         state: &State,
     ) -> wgpu::CommandBuffer {
+        if self.model.vector_clock != state.model_vector_clock {
+            self.model = Self::create_model(&base, &state, &self.material_bind_group_layout);
+        }
+
         let mut encoder = base
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-        self.write_mvp_matrix(&base, &state);
+        Self::write_transform_buffer(&base, &self.transform_buffer, &state.camera);
 
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -254,21 +549,42 @@ impl SceneRenderer {
                         store: true,
                     },
                 }],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_texture,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: false,
+                    }),
+                    stencil_ops: None,
+                }),
             });
 
-            rpass.set_pipeline(&self.pipeline);
-
-            let primitive = &self.model.primitives.first().unwrap();
-
+            rpass.set_pipeline(&self.model_pipeline);
             rpass.set_bind_group(0, &self.bind_group, &[]);
-            rpass.set_vertex_buffer(0, primitive.mesh.vertex_buffer.slice(..));
 
-            if let Some(index_buffer) = &primitive.mesh.index_buffer {
-                rpass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                rpass.draw_indexed(0..primitive.mesh.count, 0, 0..1);
-            } else {
-                rpass.draw(0..primitive.mesh.count, 0..1);
+            for primitive in &self.model.primitives {
+                if let Some(material) = &self.model.materials.get(primitive.material_id) {
+                    rpass.set_bind_group(1, &material.bind_group, &[]);
+                    rpass.set_vertex_buffer(0, primitive.vertex_buffer.slice(..));
+                    if let Some(index_buffer) = &primitive.index_buffer {
+                        rpass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                        rpass.draw_indexed(0..primitive.count, 0, 0..1);
+                    } else {
+                        rpass.draw(0..primitive.count, 0..1);
+                    }
+                }
+            }
+
+            rpass.set_pipeline(&self.wire_pipeline);
+            rpass.set_bind_group(0, &self.bind_group, &[]);
+
+            for primitive in &self.model.primitives {
+                rpass.set_vertex_buffer(0, primitive.vertex_buffer.slice(..));
+                rpass.set_index_buffer(
+                    primitive.wire_index_buffer.slice(..),
+                    wgpu::IndexFormat::Uint16,
+                );
+                rpass.draw_indexed(0..primitive.count * 2, 0, 0..1);
             }
         }
 

@@ -1,5 +1,4 @@
-use std::mem;
-use std::slice;
+use std::{mem, slice};
 
 macro_rules! impl_num_parse {
     ($($fn_name:ident, $typ:tt::$conv:tt,)*) => {
@@ -337,7 +336,7 @@ pub struct F16(u16);
 
 impl F16 {
     pub fn new(x: f32) -> Self {
-        F16(((x + 8.0) * 2048.0) as u16)
+        F16(((x + 8.0).round() * 2048.0) as u16)
     }
     pub fn new_unchecked(x: u16) -> Self {
         F16(x)
@@ -352,6 +351,16 @@ impl From<f32> for F16 {
 
 impl From<F16> for f32 {
     fn from(x: F16) -> f32 {
-        x.0 as f32 * 0.00048828 - 8.00000000
+        x.0 as f32 * 0.00048828 - 8.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_f16_round_trip() {
+        // assert(F16())
     }
 }

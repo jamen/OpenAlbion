@@ -28,7 +28,7 @@ impl RendererBase {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::empty(),
+                    features: wgpu::Features::TEXTURE_COMPRESSION_BC,
                     limits: wgpu::Limits::default(),
                 },
                 None,

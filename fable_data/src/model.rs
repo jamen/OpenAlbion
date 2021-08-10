@@ -117,10 +117,10 @@ pub struct Primitive {
     pub cloth_primitives: Vec<ClothPrimitive>,
 }
 
-pub const INIT_FLAG_POINT_SPRITE: u32 = 1;
-pub const INIT_FLAG_EXTRA_VECTOR: u32 = 2;
-pub const INIT_FLAG_PACKED: u32 = 4;
-pub const INIT_FLAG_PACKED_POS: u32 = 10;
+// pub const INIT_FLAG_POINT_SPRITE: u32 = 1;
+// pub const INIT_FLAG_EXTRA_VECTOR: u32 = 2;
+// pub const INIT_FLAG_PACKED: u32 = 4;
+// pub const INIT_FLAG_PACKED_POS: u32 = 10;
 
 #[derive(Debug)]
 pub struct PrimitiveBlock {
@@ -146,11 +146,14 @@ pub struct PrimitiveAnimatedBlock {
     pub groups: Vec<u8>,
 }
 
+// TODO: This type is missing the bone data, unknown data, and mesh level found in some meshes, but
+// its enough to render something. The attributes could be added, but they're sometimes empty.
+// There's many other solutions, but how the shaders are organized should be taken into account.
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct Vertex {
-    pub pos: [f32; 4],
-    pub normal: [f32; 4],
+    pub pos: [f32; 3],
+    pub normal: [f32; 3],
     pub uv: [f32; 2],
 }
 
@@ -228,7 +231,8 @@ impl Model {
         let helper_names_uncompressed = data.parse_u32_le()?;
         let _padding = data.parse_u16_le()?;
 
-        // println!("name {:?}", name);
+        // print!("{:?}, ", name);
+        println!("name {:?}", name);
         // println!("animated {:?}", animated);
         // println!("bounding_sphere {:?}", bounding_sphere);
         // println!("bounding_box {:?}", bounding_box);
@@ -545,8 +549,8 @@ impl Model {
         let index_count = data.parse_u32_le()?;
         let init_flags = data.parse_u32_le()?;
 
-        println!("init_flags {:0>32b}", init_flags);
-        println!("_animated_block_count > 0 {:?}", _animated_block_count > 0);
+        // println!("init_flags {:0>32b}", init_flags);
+        // println!("_animated_block_count > 0 {:?}", _animated_block_count > 0);
 
         // The game takes init_flags and copies all but the third bit into init_flags. It checks if
         // animated_block_count is not equal to zero and sets vertex_stream_flags to 1. It checks if
@@ -561,13 +565,25 @@ impl Model {
         let static_block_count = data.parse_u32_le()?;
         let animated_block_count = data.parse_u32_le()?;
 
+        // print!("{:}, ", vertex_count);
+        // print!("{:}, ", index_count);
+        // print!("{:}, ", triangle_count);
+
+        // print!("{:}, ", index_count / vertex_count);
+        // print!("{:}, ", index_count / triangle_count);
+        // print!("{:}, ", triangle_count / vertex_count);
+
+        // print!("{:b}, ", init_flags);
+        // print!("{:?}, ", animated_block_count != 0);
+        // print!("{:?}, ", repeating_mesh_reps < 1);
+
         let mut static_blocks = Vec::with_capacity(static_block_count as usize);
 
         for _ in 0..static_block_count {
             static_blocks.push(Self::decode_static_block(data)?);
         }
 
-        // println!("static_blocks {:?}", static_blocks);
+        println!("static_blocks {:#?}", static_blocks);
 
         let mut animated_blocks = Vec::with_capacity(animated_block_count as usize);
 
@@ -575,19 +591,37 @@ impl Model {
             animated_blocks.push(Self::decode_animated_block(data)?);
         }
 
-        // println!("animated_blocks {:?}", animated_blocks);
+        println!("animated_blocks {:#?}", animated_blocks);
+
+        println!("\n\n");
+
+        // print!(
+        //     "{:?}, ",
+        //     static_blocks
+        //         .first()
+        //         .map(|x| x.base.is_strip)
+        //         .or(animated_blocks.first().map(|x| x.base.is_strip))
+        //         .unwrap_or(false)
+        // );
 
         let pos_scale = data.parse_vector4_f32_le()?;
         let pos_bias = data.parse_vector4_f32_le()?;
 
         let vertex_size = data.parse_u32_le()?;
-        let padding = data.parse_u32_le()?;
 
-        let mesh_level_size = vertex_count as usize * vertex_size as usize;
+        let vertex_multiplier = if repeating_mesh_reps < 2 {
+            1
+        } else {
+            repeating_mesh_reps as usize
+        };
+
+        // print!("{:?} ", vertex_size);
+
+        let padding = data.parse_u32_le()?;
 
         let vertex_data = Self::decode_semi_compressed(
             data,
-            mesh_level_size + mesh_level_size * repeating_mesh_reps as usize,
+            vertex_count as usize * vertex_size as usize * vertex_multiplier,
         )?;
 
         let mut vertex_data = vertex_data.as_slice();
@@ -597,35 +631,61 @@ impl Model {
         for _ in 0..vertex_count {
             vertices.push(Self::decode_vertex(
                 &mut vertex_data,
+                vertex_size,
                 animated_block_count > 0,
+                repeating_mesh_reps > 0,
                 init_flags,
                 pos_scale,
                 pos_bias,
             )?);
         }
 
-        // println!("vertices {:?}", vertices);
+        // println!("vertices {:?}", &vertices[..6.min(vertex_count as usize)]);
 
-        let index_level_size = 2 * index_count as usize;
+        let index_buffer =
+            Self::decode_semi_compressed(data, 2 * index_count as usize * vertex_multiplier)?;
 
-        let original_index_buffer = Self::decode_semi_compressed(
-            data,
-            index_level_size + index_level_size * repeating_mesh_reps as usize,
-        )?;
+        let mut index_buffer = index_buffer.as_slice();
 
-        let original_indices = bytemuck::cast_slice::<_, u16>(&original_index_buffer);
+        // let original_indices = bytemuck::cast_slice::<_, u16>(&original_index_buffer).to_vec();
 
-        let mut indices = if index_count > 0 {
-            let mut indices = Vec::with_capacity(index_count as usize * 3 - 2);
+        let mut indices = Vec::new();
 
-            for i in 0..index_count - 2 {
-                indices.extend_from_slice(&original_indices[i as usize..=i as usize + 2]);
+        for static_block in &static_blocks {
+            let mut index_view = &index_buffer[static_block.base.start_index as usize * 2..];
+
+            for _ in 0..static_block.base.primitive_count {
+                if static_block.base.is_strip {
+                    let v1 = index_view.parse_u16_le()?;
+                    let mut peek = &index_view[..];
+                    let v2 = peek.parse_u16_le()?;
+                    let v3 = peek.parse_u16_le()?;
+                    indices.extend_from_slice(&[v1, v2, v3]);
+                } else {
+                    let v1 = index_view.parse_u16_le()?;
+                    let v2 = index_view.parse_u16_le()?;
+                    let v3 = index_view.parse_u16_le()?;
+                    indices.extend_from_slice(&[v1, v2, v3]);
+                }
             }
+        }
 
-            indices
-        } else {
-            original_indices.to_vec()
-        };
+        for animated_block in &animated_blocks {
+            for _ in 0..animated_block.base.primitive_count {
+                if animated_block.base.is_strip {
+                    let v1 = index_buffer.parse_u16_le()?;
+                    let mut peek = &index_buffer[..];
+                    let v2 = peek.parse_u16_le()?;
+                    let v3 = peek.parse_u16_le()?;
+                    indices.extend_from_slice(&[v1, v2, v3]);
+                } else {
+                    let v1 = index_buffer.parse_u16_le()?;
+                    let v2 = index_buffer.parse_u16_le()?;
+                    let v3 = index_buffer.parse_u16_le()?;
+                    indices.extend_from_slice(&[v1, v2, v3]);
+                }
+            }
+        }
 
         let cloth_primitives_count = data.parse_u32_le()?;
 
@@ -634,6 +694,8 @@ impl Model {
         for _ in 0..cloth_primitives_count {
             cloth_primitives.push(Self::decode_cloth_primitive(data)?);
         }
+
+        println!();
 
         Some(Primitive {
             material_index,
@@ -702,76 +764,69 @@ impl Model {
 
     fn decode_vertex(
         data: &mut &[u8],
+        vertex_size: u32,
         animated: bool,
+        repeating: bool,
         init_flags: u32,
         pos_scale: [f32; 4],
         pos_bias: [f32; 4],
     ) -> Option<Vertex> {
-        let mut pos = if (animated
-            && ((init_flags & INIT_FLAG_PACKED == 0) && (init_flags & INIT_FLAG_PACKED_POS != 0)))
-            || (!animated
-                && ((init_flags & INIT_FLAG_PACKED == 0)
-                    || (init_flags & INIT_FLAG_PACKED_POS != 0)))
-        {
-            data.parse_vector3_f32_le()?.into()
-        } else {
-            let arr: [f32; 3] = data.parse_vector3_packed()?.into();
-            arr
-        };
+        let mut vertex_data = data.advance(vertex_size as usize)?;
 
-        let mut pos = [pos[0], pos[1], pos[2], 0.0];
+        // println!("vertex_data {:x?}", vertex_data);
+
+        let mut pos = if !repeating && (init_flags & 0b10000) != 0b10000 {
+            vertex_data.parse_vector3_packed()?
+        } else {
+            vertex_data.parse_vector3_f32_le()?
+        };
 
         pos[0] = pos[0] * pos_scale[0] + pos_bias[0];
         pos[1] = pos[1] * pos_scale[1] + pos_bias[1];
         pos[2] = pos[2] * pos_scale[2] + pos_bias[2];
 
-        // eprintln!("pos {:?}", pos);
+        // println!("pos {:?}", pos);
+        // println!("vertex_data {:x?}", vertex_data);
 
-        if animated {
-            let _d3dcolor_1 = data.parse_u32_le()?;
-            let _d3dcolor_2 = data.parse_u32_le()?;
-            eprintln!(
-                "Warning: Unused d3dcolors {:0>8x?} {:0>8x?}",
-                _d3dcolor_1, _d3dcolor_2
-            );
-        }
-
-        let uv = if init_flags & INIT_FLAG_PACKED == 0 {
-            data.parse_vector2_f32_le()?.into()
+        let _bone_data = if !repeating && animated {
+            vertex_data.advance(8)
         } else {
-            let uv = data.parse_vector2_f16_le()?;
+            None
+        };
+
+        // println!("_bone_data {:?}", _bone_data);
+        // println!("vertex_data {:x?}", vertex_data);
+
+        let normal = if !repeating {
+            vertex_data.parse_vector3_packed()?
+        } else {
+            vertex_data.parse_vector3_f32_le()?
+        };
+
+        // println!("normal {:?}", normal);
+
+        let uv = if !repeating {
+            let uv = vertex_data.parse_vector2_f16_le()?;
             [uv[0].into(), uv[1].into()]
-        };
-
-        let mut normal = if init_flags & INIT_FLAG_EXTRA_VECTOR != 0 {
-            let normal = if init_flags & INIT_FLAG_PACKED == 0 {
-                data.parse_vector3_f32_le()?.into()
-            } else {
-                let arr: [f32; 3] = data.parse_vector3_packed()?.into();
-                arr
-            };
-
-            [normal[0], normal[1], normal[2], 0.0]
         } else {
-            Default::default()
+            vertex_data.parse_vector2_f32_le()?
         };
 
-        // let normal = [normal[0], normal[1], normal[2], 0.0];
+        // println!("uv {:?}", uv);
 
-        // if init_flags & INIT_FLAG_EXTRA_VECTOR != 0 {
-        //     let _extra: Vector4<f32> = if init_flags & INIT_FLAG_PACKED == 0 {
-        //         data.parse_vector4_f32_le()?.into()
-        //     } else {
-        //         let x = data.parse_u16_le()? as f32 * 0.00003052;
-        //         let y = data.parse_u16_le()? as f32 * 0.00003052;
-        //         let z = data.parse_u16_le()? as f32 * 0.00003052;
-        //         let w = data.parse_u16_le()? as f32 * 0.00003052;
-        //         [x, y, z, w].into()
-        //     };
-        //     eprintln!("Warning: Unused extra vector {:?}", _extra);
-        // }
+        let _unknown = if !repeating && (init_flags & 0b10) == 0b10 {
+            vertex_data.advance(8)
+        } else {
+            None
+        };
 
-        Some(Vertex { pos, normal, uv })
+        // println!("_unknown {:?}", _unknown);
+
+        Some(Vertex {
+            pos: pos.into(),
+            normal: normal.into(),
+            uv,
+        })
     }
 
     fn decode_cloth_primitive(data: &mut &[u8]) -> Option<ClothPrimitive> {
@@ -1000,5 +1055,36 @@ impl Model {
         }
 
         Some(uncompressed)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    use crate::{Big, BigInfo, BigMeshInfo};
+
+    use std::fs::File;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_try_parsing_all_models() {
+        let fable_dir = PathBuf::from(env!("FABLE_DIR"));
+
+        let graphics_path = fable_dir.join("data/graphics/graphics.big");
+        let graphics_file = File::open(&graphics_path).unwrap();
+        let graphics = Big::decode_reader_with_path(&graphics_file, &graphics_path).unwrap();
+
+        for entry in graphics.entries {
+            if let BigInfo::Mesh(big_mesh_info) = &entry.info {
+                // println!("entry name {:?}", entry.sources.first());
+
+                let mut entry_data = vec![0; entry.data_size as usize];
+
+                Big::read_entry(&graphics_file, &entry, &mut entry_data).unwrap();
+
+                let model = Model::decode(&entry_data, &big_mesh_info).unwrap();
+            }
+        }
     }
 }
