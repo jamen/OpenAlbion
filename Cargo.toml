@@ -11,7 +11,6 @@ repository = "https://github.com/jamen/open_albion"
 winit = "0.25.0"
 wgpu = "0.9.0"
 glam = { version = "0.15.1", features = [ "mint" ] }
-vk-shader-macros = "0.2.7"
 tokio = { version = "1.7.0", features = [ "rt-multi-thread", "net", "time", "sync", "macros" ] }
 fable_data = { path = "fable_data" }
 bytemuck = "1.7.0"

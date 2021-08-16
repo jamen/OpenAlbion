@@ -316,17 +316,302 @@ impl From<[f32; 3]> for Vector3Packed {
 }
 
 impl From<Vector3Packed> for [f32; 3] {
-    fn from(x: Vector3Packed) -> [f32; 3] {
-        [
-            (((((u32::MAX - (x.0 & 0x400)) != 0) as u32) & 0xfffff800) | (x.0 & 0x7ff)) as f32
-                * -0.00097752,
-            (((((u32::MAX - (x.0 >> 0xb & 0x400)) != 0) as u32) & 0xfffff800)
-                | (x.0 >> 0xb & 0x7ff)) as f32
-                * 0.00097752,
-            (((((u32::MAX - (x.0 >> 0x16 & 0x200)) != 0) as u32) & 0xfffffc00) | (x.0 >> 0x16))
-                as f32
-                * 0.00195695,
-        ]
+    fn from(v: Vector3Packed) -> [f32; 3] {
+        // Attempt 4
+        //
+
+        let xe = (v.0 >> 6) & 0b11111;
+        let xm = (v.0 >> 0) & 0b111111;
+
+        let ye = (v.0 >> 17) & 0b11111;
+        let ym = (v.0 >> 11) & 0b111111;
+
+        let ze = (v.0 >> 27) & 0b11111;
+        let zm = (v.0 >> 22) & 0b11111;
+
+        let mut exponent;
+        let mut mantissa = xm;
+
+        if xe == 0x1f {
+            exponent = 0x7f800000 | (xm << 17);
+        } else if xm != 0 {
+            exponent = 1;
+            loop {
+                exponent = exponent.wrapping_sub(1);
+                mantissa <<= 1;
+                if (mantissa & 0x40) == 0 {
+                    break;
+                }
+            }
+            mantissa &= 0x1f;
+            // let l = xm.leading_zeros();
+            // exponent = 1_u32.wrapping_sub(l);
+            // mantissa = (xm << l) & 0x3f;
+        } else {
+            exponent = 112_u32.wrapping_neg();
+        }
+
+        let x = f32::from_bits(((exponent.wrapping_add(112)) << 23) | (mantissa << 17));
+
+        mantissa = ym;
+
+        if ye == 0x1f {
+            exponent = 0x7f800000 | (ym << 17);
+        } else if ym != 0 {
+            exponent = 1;
+            loop {
+                exponent = exponent.wrapping_sub(1);
+                mantissa <<= 1;
+                if (mantissa & 0x40) == 0 {
+                    break;
+                }
+            }
+            mantissa &= 0x1f;
+            // let l = ym.leading_zeros();
+            // exponent = 1_u32.wrapping_sub(l);
+            // mantissa = (ym << l) & 0x3f;
+        } else {
+            exponent = 112_u32.wrapping_neg();
+        }
+
+        let y = f32::from_bits(((exponent.wrapping_add(112)) << 23) | (mantissa << 17));
+
+        mantissa = zm;
+
+        if ze == 0x1f {
+            exponent = 0x7f800000 | (zm << 17);
+        } else if zm != 0 {
+            exponent = 1;
+            loop {
+                exponent = exponent.wrapping_sub(1);
+                mantissa <<= 1;
+                if (mantissa & 0x20) == 0 {
+                    break;
+                }
+            }
+            mantissa &= 0x1f;
+            // let l = zm.leading_zeros();
+            // exponent = 1_u32.wrapping_sub(l);
+            // mantissa = (zm << l) & 0x1f;
+        } else {
+            exponent = 112_u32.wrapping_neg();
+        }
+
+        let z = f32::from_bits(((exponent.wrapping_add(112)) << 23) | (mantissa << 18));
+
+        println!(
+            "x = {:0>5b}_{:0>6b}, {:?}, {}\n\
+             y = {:0>5b}_{:0>6b}, {:?}, {}\n\
+             z = {:0>5b}_{:0>6b}, {:?}, {}\n",
+            xe,
+            xm,
+            F32Inspect(x),
+            x,
+            ye,
+            ym,
+            F32Inspect(y),
+            y,
+            ze,
+            zm,
+            F32Inspect(z),
+            z,
+        );
+
+        [x, y, z]
+
+        // Attempt 3
+        //
+
+        // let x = f32::from_bits(
+        //     (((v.0 & 0b00000000000000000000010000000000) != 0) as u32).wrapping_neg()
+        //         & 0b11111111111111111111100000000000
+        //         | v.0 & 0b00000000000000000000011111111111,
+        // ) * 0.00097752;
+
+        // let y = f32::from_bits(
+        //     ((((v.0 >> 11) & 0b00000000000000000000010000000000) != 0) as u32).wrapping_neg()
+        //         & 0b11111111111111111111100000000000
+        //         | (v.0 >> 11) & 0b00000000000000000000011111111111,
+        // ) * 0.00097752;
+
+        // let z = f32::from_bits(
+        //     (((v.0 >> 22 & 0b00000000000000000000001000000000) != 0) as u32).wrapping_neg()
+        //         & 0b11111111111111111111100000000000
+        //         | v.0 >> 22 & 0b00000000000000000000011111111111,
+        // ) * 0.00195695;
+
+        // println!(
+        //     "1. {:0>32b} {:0>32b} {:0>32b}\n\
+        //      2. {} {} {}\n",
+        //     x.to_bits(),
+        //     y.to_bits(),
+        //     z.to_bits(),
+        //     x,
+        //     y,
+        //     z
+        // );
+
+        // [x, y, z]
+
+        // Attempt 2
+        //
+
+        // println!("{:0>8x}", v.0);
+
+        // let ze = (v.0 & 0b11111000000000000000000000000000) >> 27;
+        // let zm = (v.0 & 0b00000111110000000000000000000000) >> 22;
+
+        // let ye = (v.0 & 0b00000000001111100000000000000000) >> 17;
+        // let ym = (v.0 & 0b00000000000000011111100000000000) >> 11;
+
+        // let xe = (v.0 & 0b00000000000000000000011111000000) >> 6;
+        // let xm = v.0 & 0b00000000000000000000000000111111;
+
+        // let z = if ze == 0x1f {
+        //     println!("On this?");
+        //     f32::from_bits(0x7f800000 | (zm << 18))
+        // } else {
+        //     let mut m = zm;
+        //     let e = if ze != 0 {
+        //         ze
+        //     } else if zm != 0 {
+        //         let mut e = 1u32;
+        //         loop {
+        //             e = e.wrapping_sub(1);
+        //             m <<= 1;
+        //             if (m & 40) == 0 {
+        //                 break e;
+        //             }
+        //         }
+        //     } else {
+        //         112_u32.wrapping_neg()
+        //     };
+        //     f32::from_bits((e.wrapping_add(112) << 23) | (m << 18))
+        // };
+
+        // let y = if ye == 0x1f {
+        //     println!("On this?");
+        //     f32::from_bits(0x7f800000 | (ym << 17))
+        // } else {
+        //     let mut m = ym;
+        //     let e = if ye != 0 {
+        //         ye
+        //     } else if ym != 0 {
+        //         let mut e = 1u32;
+        //         loop {
+        //             e = e.wrapping_sub(1);
+        //             m <<= 1;
+        //             if (m & 40) == 0 {
+        //                 break e;
+        //             }
+        //         }
+        //     } else {
+        //         112_u32.wrapping_neg()
+        //     };
+        //     f32::from_bits((e.wrapping_add(112) << 23) | (m << 17))
+        // };
+
+        // let x = if xe == 0x1f {
+        //     println!("On this?");
+        //     f32::from_bits(0x7f800000 | (xm << 17))
+        // } else {
+        //     let mut m = xm;
+        //     let e = if xe != 0 {
+        //         xe
+        //     } else if xm != 0 {
+        //         let mut e = 1u32;
+        //         loop {
+        //             e = e.wrapping_sub(1);
+        //             m <<= 1;
+        //             if (m & 40) == 0 {
+        //                 break e;
+        //             }
+        //         }
+        //     } else {
+        //         112_u32.wrapping_neg()
+        //     };
+        //     f32::from_bits((e.wrapping_add(112) << 23) | (m << 17))
+        // };
+
+        // let z = f32::from_bits(
+        //     ((((v.0 & 0b11111000000000000000000000000000) >> 27) + 112) << 23)
+        //         | ((v.0 & 0b00000111110000000000000000000000) >> 22),
+        // );
+
+        // let x = f32::from_bits(
+        //     ((((v.0 & 0b00000000001111100000000000000000) >> 17) + 112) << 23)
+        //         | ((v.0 & 0b00000000000000011111100000000000) >> 11),
+        // );
+
+        // let y = f32::from_bits(
+        //     ((((v.0 & 0b00000000000000000000011111000000) << 6) + 112) << 23)
+        //         | (v.0 & 0b00000000000000000000000000111111),
+        // );
+
+        // println!(
+        //     "1. {:0>32b} {:0>32b} {:0>32b}\n\
+        //      2. {} {} {}\n",
+        //     x.to_bits(),
+        //     y.to_bits(),
+        //     z.to_bits(),
+        //     x,
+        //     y,
+        //     z
+        // );
+
+        // [x, y, z]
+
+        // Attempt 1
+        //
+
+        // let a1 = v.0 & 0b11111111111;
+        // let a2 = v.0 >> 11 & 0b11111111111;
+        // let a3 = v.0 >> 22;
+
+        // let b1 = v.0 & 0b10000000000;
+        // let b2 = v.0 >> 11 & 0b10000000000;
+        // let b3 = v.0 >> 22 & 0b1000000000;
+
+        // let c1 = ((b1 != 0) as u32).wrapping_neg() & 0b11111111111111111111100000000000;
+        // let c2 = ((b2 != 0) as u32).wrapping_neg() & 0b11111111111111111111100000000000;
+        // let c3 = ((b3 != 0) as u32).wrapping_neg() & 0b11111111111111111111110000000000;
+
+        // let d1 = c1 | a1;
+        // let d2 = c2 | a2;
+        // let d3 = c3 | a3;
+
+        // let e1 = d1 as f32 * 0.00097752;
+        // let e2 = d2 as f32 * 0.00097752;
+        // let e3 = d3 as f32 * 0.00195695;
+
+        // println!(
+        //     "1. {:0>11b} {:0>11b} {:0>10b}\n\
+        //      2. {:0>11b} {:0>11b} {:0>10b}\n\
+        //      3. {:0>32b} {:0>32b} {:0>32b}\n\
+        //      4. {:0>32b} {:0>32b} {:0>32b}\n\
+        //      5. {:0>32b} {:0>32b} {:0>32b}\n\
+        //      6. {} {} {}\n",
+        //     a1,
+        //     a2,
+        //     a3,
+        //     b1,
+        //     b2,
+        //     b3,
+        //     c1,
+        //     c2,
+        //     c3,
+        //     d1,
+        //     d2,
+        //     d3,
+        //     e1.to_bits(),
+        //     e2.to_bits(),
+        //     e3.to_bits(),
+        //     e1,
+        //     e2,
+        //     e3,
+        // );
+
+        // [e1, e2, e3]
     }
 }
 
@@ -352,6 +637,21 @@ impl From<f32> for F16 {
 impl From<F16> for f32 {
     fn from(x: F16) -> f32 {
         x.0 as f32 * 0.00048828 - 8.0
+    }
+}
+
+pub struct F32Inspect(f32);
+
+impl std::fmt::Debug for F32Inspect {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let x = self.0.to_bits();
+        write!(
+            fmt,
+            "{:b}_{:0>8b}_{:0>23b}",
+            x >> 31,
+            (x >> 23) & 0xff,
+            (x) & 0x7fffff
+        )
     }
 }
 

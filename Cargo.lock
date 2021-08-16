@@ -204,15 +204,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cmake"
-version = "0.1.44"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e56268c17a6248366d66d4a47a3381369d068cce8409bb1716ed77ea32163bb"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "cocoa"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1439,7 +1430,6 @@ dependencies = [
  "native-dialog",
  "rand",
  "tokio",
- "vk-shader-macros",
  "wgpu",
  "winit",
 ]
@@ -1554,12 +1544,6 @@ checksum = "1d6ea3c4595b96363c13943497db34af4460fb474a95c43f4446ad341b8c9785"
 dependencies = [
  "toml",
 ]
-
-[[package]]
-name = "proc-macro-hack"
-version = "0.5.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99c605b9a0adc77b7211c6b1f722dcb613d68d66859a44f3d485a6da332b0598"
 
 [[package]]
 name = "proc-macro2"
@@ -1752,26 +1736,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "shaderc"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ca37955a53b37fa20380c414aec5343ab76b6993ebfd86e74facd7209bac577"
-dependencies = [
- "libc",
- "shaderc-sys",
-]
-
-[[package]]
-name = "shaderc-sys"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da6962db4d543df2fb613d76e6f4c7bcf58ff3300709c92f2349239955ce0a9f"
-dependencies = [
- "cmake",
- "libc",
 ]
 
 [[package]]
@@ -1983,29 +1947,6 @@ name = "version_check"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5a972e5669d67ba988ce3dc826706fb0a8b01471c088cb0b6110b805cc36aed"
-
-[[package]]
-name = "vk-shader-macros"
-version = "0.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abaf1283f4b9a883cd0b7f9c52334442d22775668d8ad7fbe68c2d0118bc3f91"
-dependencies = [
- "proc-macro-hack",
- "vk-shader-macros-impl",
-]
-
-[[package]]
-name = "vk-shader-macros-impl"
-version = "0.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f5e6ec491f3dd862cc1bcd8900181693472c1e34bf4ec3d20fb9447f4d4ba5ba"
-dependencies = [
- "proc-macro-hack",
- "proc-macro2",
- "quote",
- "shaderc",
- "syn",
-]
 
 [[package]]
 name = "walkdir"

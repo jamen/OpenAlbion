@@ -10,18 +10,6 @@ use std::array::IntoIter;
 
 use winit::window::Window;
 
-/// Compiles and embeds a shader.
-#[macro_export]
-macro_rules! include_glsl {
-    ($path:literal, $($token:tt)*) => {
-        wgpu::ShaderModuleDescriptor {
-            label: Some($path),
-            source: wgpu::ShaderSource::SpirV(vk_shader_macros::include_glsl!($path, $($token)*)[..].into()),
-            flags: wgpu::ShaderFlags::VALIDATION,
-        }
-    }
-}
-
 pub struct Renderer {
     pub base: RendererBase,
     pub scene_renderer: SceneRenderer,

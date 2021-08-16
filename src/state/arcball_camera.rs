@@ -27,7 +27,7 @@ impl ArcballCamera {
 
         // These work individually
         let rx = Quat::from_axis_angle(Vec3::Y, delta.0 as f32 * 0.001);
-        let ry = Quat::from_axis_angle(self.rotation * Vec3::X, delta.1 as f32 * 0.001);
+        let ry = Quat::from_axis_angle(self.rotation * Vec3::X, -delta.1 as f32 * 0.001);
         // Doesn't combine well
         let r = rx * ry;
 

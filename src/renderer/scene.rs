@@ -5,7 +5,7 @@ use std::mem;
 use std::num::NonZeroU64;
 
 use crate::state::ArcballCamera;
-use crate::{include_glsl, RendererBase, State};
+use crate::{RendererBase, State};
 
 use crevice::std430::{AsStd430, Std430};
 use fable_data::Big;
@@ -304,7 +304,12 @@ impl SceneRenderer {
                                     mip_level_count: 1,
                                     sample_count: 1,
                                     dimension: wgpu::TextureDimension::D2,
-                                    format: wgpu::TextureFormat::Bc1RgbaUnorm,
+                                    // TODO: This is probably broken
+                                    format: match texture.dxt_compression {
+                                        31 => wgpu::TextureFormat::Bc1RgbaUnorm,
+                                        32 => wgpu::TextureFormat::Bc2RgbaUnorm,
+                                        _ => wgpu::TextureFormat::Bc2RgbaUnorm,
+                                    },
                                     usage: wgpu::TextureUsage::COPY_DST
                                         | wgpu::TextureUsage::SAMPLED,
                                 },
@@ -575,16 +580,18 @@ impl SceneRenderer {
                 }
             }
 
-            rpass.set_pipeline(&self.wire_pipeline);
-            rpass.set_bind_group(0, &self.bind_group, &[]);
+            if state.wireframe {
+                rpass.set_pipeline(&self.wire_pipeline);
+                rpass.set_bind_group(0, &self.bind_group, &[]);
 
-            for primitive in &self.model.primitives {
-                rpass.set_vertex_buffer(0, primitive.vertex_buffer.slice(..));
-                rpass.set_index_buffer(
-                    primitive.wire_index_buffer.slice(..),
-                    wgpu::IndexFormat::Uint16,
-                );
-                rpass.draw_indexed(0..primitive.count * 2, 0, 0..1);
+                for primitive in &self.model.primitives {
+                    rpass.set_vertex_buffer(0, primitive.vertex_buffer.slice(..));
+                    rpass.set_index_buffer(
+                        primitive.wire_index_buffer.slice(..),
+                        wgpu::IndexFormat::Uint16,
+                    );
+                    rpass.draw_indexed(0..primitive.count * 2, 0, 0..1);
+                }
             }
         }
 

@@ -232,7 +232,7 @@ impl Model {
         let _padding = data.parse_u16_le()?;
 
         // print!("{:?}, ", name);
-        println!("name {:?}", name);
+        // println!("name {:?}", name);
         // println!("animated {:?}", animated);
         // println!("bounding_sphere {:?}", bounding_sphere);
         // println!("bounding_box {:?}", bounding_box);
@@ -583,7 +583,7 @@ impl Model {
             static_blocks.push(Self::decode_static_block(data)?);
         }
 
-        println!("static_blocks {:#?}", static_blocks);
+        // println!("static_blocks {:#?}", static_blocks);
 
         let mut animated_blocks = Vec::with_capacity(animated_block_count as usize);
 
@@ -591,9 +591,9 @@ impl Model {
             animated_blocks.push(Self::decode_animated_block(data)?);
         }
 
-        println!("animated_blocks {:#?}", animated_blocks);
+        // println!("animated_blocks {:#?}", animated_blocks);
 
-        println!("\n\n");
+        // println!("\n\n");
 
         // print!(
         //     "{:?}, ",
@@ -695,7 +695,7 @@ impl Model {
             cloth_primitives.push(Self::decode_cloth_primitive(data)?);
         }
 
-        println!();
+        // println!();
 
         Some(Primitive {
             material_index,
@@ -780,6 +780,8 @@ impl Model {
         } else {
             vertex_data.parse_vector3_f32_le()?
         };
+
+        // println!("pos before adjust {:?}", pos);
 
         pos[0] = pos[0] * pos_scale[0] + pos_bias[0];
         pos[1] = pos[1] * pos_scale[1] + pos_bias[1];

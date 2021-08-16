@@ -34,6 +34,8 @@ pub struct State {
 
     pub selected_model_name: String,
     pub model_vector_clock: usize,
+    pub wireframe: bool,
+    pub show_focus_point: bool,
 }
 
 impl State {
@@ -56,10 +58,21 @@ impl State {
             // "MESH_HERO_BANDITCAMP_HEAD_01"
             // "MESH_HERO_LEATHERARMOUR_BOOT_L_01"
             // "MESH_HERO_FOLDED_BOOTS_LEATHERARMOUR"
-            "MESH_BODYGUARD_LEGS_01"
+            // "MESH_BODYGUARD_LEGS_01"
+            // "MESH_PIE_APPLE_QUARTER_01"
+            // "MESH_PIE_BLUEBERRY_QUARTER_01"
+            "MESH_TROPHY_TOOTH"
+            // "MESH_QUEST_CARD_VIN_NEUTRAL_01"
+            // "MESH_CREATURE_BUTTERFLY_COMMONBLUE"
+            // "MESH_CREATURE_BUTTERFLY_TORTOISESHELL"
+            // "MESH_GRAVEYARD_CRYPT_SECRET_DOOR"
+            // "MESH_BS_RUG_SQUARE_SCALES_01"
+            // "MESH_BHF_RUG_LEVEL_03_A"
             // "MESH_POPPY_01"
             // "MESH_BS_SLUM_PLAYING_CARD_SPADES_TEN_01"
             // "MESH_GUILD_BOOKCASE_SECRET_01"
+            // "MESH_GUILD_LO_POLY_01"
+            // "MESH_SS_TAVERN_EXT_01"
             .to_owned();
 
         Self {
@@ -73,13 +86,27 @@ impl State {
             textures_file,
             selected_model_name,
             model_vector_clock: 0,
+            wireframe: true,
+            show_focus_point: false,
         }
     }
 
     pub fn update(&mut self) {
-        if self.input.keys[VirtualKeyCode::Space as usize] > Some(self.frame_start) {
-            self.selected_model_name = Self::random_model_name(&self.graphics);
-            self.model_vector_clock += 1;
+        if self.input.cursor_position.is_some() {
+            if self.input.modifiers.ctrl() {
+                self.show_focus_point = true;
+            } else if self.show_focus_point {
+                self.show_focus_point = false;
+            }
+
+            if self.input.keys[VirtualKeyCode::Space as usize] > Some(self.frame_start) {
+                self.selected_model_name = Self::random_model_name(&self.graphics);
+                self.model_vector_clock += 1;
+            }
+
+            if self.input.keys[VirtualKeyCode::E as usize] > Some(self.frame_start) {
+                self.wireframe = !self.wireframe;
+            }
         }
 
         self.frame_start = Instant::now();
