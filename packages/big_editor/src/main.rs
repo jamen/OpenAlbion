@@ -1,15 +1,15 @@
+mod ui;
+
 use gpui::{
-    App, AppContext, Application, ClickEvent, Context, Entity, IntoElement, ParentElement, Render,
-    Window, WindowOptions, div,
+    App, AppContext, Application, ClickEvent, Context, IntoElement, ParentElement, Render,
+    SharedString, Window, WindowOptions, div,
 };
 use gpui_component::{
-    Root, StyledExt,
-    button::{Button, ButtonVariants},
-    table::Table,
+    Root, StyledExt, button::{Button, ButtonVariants}, list::ListDelegate, table::{Table, TableState}
 };
 
 pub struct HelloWorld {
-    count: i64,
+    big_file_paths: Vec<SharedString>,
 }
 
 impl HelloWorld {
@@ -20,20 +20,17 @@ impl HelloWorld {
 
 impl Render for HelloWorld {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .h_flex()
-            // .child(Table::new())
-            .child(format!("{}", &self.count))
-            .child(
-                Button::new("ok")
-                    .primary()
-                    .label("Let's Go!")
-                    .on_click(cx.listener(Self::on_increment)),
-            )
+        div().h_flex().child(Table::new())
     }
 }
 
+struct AssetList {}
+
+impl ListDelegate for AssetList {}
+
 fn main() {
+    TableState::ne
+
     Application::new().run(|cx: &mut App| {
         // This must be called before using any GPUI Component features.
         gpui_component::init(cx);
