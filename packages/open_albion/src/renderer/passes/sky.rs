@@ -70,7 +70,7 @@ impl SkyPass {
         Self { pipeline }
     }
 
-    pub fn pass(&mut self, cmd: &mut CommandEncoder, target_texture_view: &TextureView) {
+    pub fn queue(&mut self, cmd: &mut CommandEncoder, target_texture_view: &TextureView) {
         let mut rpass = cmd.begin_render_pass(&RenderPassDescriptor {
             label: Some(type_name::<Self>()),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
