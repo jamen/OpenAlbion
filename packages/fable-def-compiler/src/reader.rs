@@ -404,12 +404,11 @@ impl<'a, 's> DefReader<'a, 's> {
             if entry.consumed {
                 continue;
             }
-            if let Statement::TaggedBlock(tb) = entry.stmt {
-                if tb.tag == tag {
+            if let Statement::TaggedBlock(tb) = entry.stmt
+                && tb.tag == tag {
                     entry.consumed = true;
                     return Some(DefReader::new(&tb.body, self.eval.symbols));
                 }
-            }
         }
         None
     }
@@ -432,17 +431,15 @@ impl<'a, 's> DefReader<'a, 's> {
                 let segs = &field.path.segments;
                 if segs.len() == self.depth + 2
                     && matches!(segs.get(self.depth), Some(PathSegment::Field(n)) if n == name)
-                {
-                    if let Some(PathSegment::Index(idx_expr)) = segs.get(self.depth + 1) {
+                    && let Some(PathSegment::Index(idx_expr)) = segs.get(self.depth + 1) {
                         let idx = self.eval.usize(idx_expr).map_err(DefReaderError::Eval)?;
                         groups.entry(idx).or_default().push(i);
                     }
-                }
             }
         }
 
         let mut expected = 0usize;
-        for (&idx, _) in &groups {
+        for &idx in groups.keys() {
             if idx != expected {
                 return Err(DefReaderError::BadIndex(BadIndex::Gap {
                     expected,
