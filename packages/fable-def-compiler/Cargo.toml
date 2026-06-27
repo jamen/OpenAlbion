@@ -1,0 +1,8 @@
+[package]
+name = "fable-def-compiler"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+fable-data = { path = "../fable-data" }
