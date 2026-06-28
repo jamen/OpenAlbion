@@ -48,13 +48,20 @@ than the scrappy direct renderer. Extend the renderer; resist the framework rewr
   environment theme. The lighting-colours **LUT is uploaded and bound but not yet sampled** in the
   shader (so time-of-day *colour* is inert). Missing: base band, inner sky (clouds), star field,
   sun, moon, sun/lens flares, screen-space sprites.
-- **Landscape** — one flat **untextured** mesh built from the `.lev` heightmap, single directional
-  light, **true world scale** from the decomp (file float × 2048.0). The ground-theme + cliff
-  texturing data exists in the `.lev` but isn't decoded or rendered.
+- **Landscape** — heightmap mesh with per-vertex theme indices, blend weights, and cliff lookup
+  UVs; **debug-visualized** with colour-coded theme indices and slope-based cliff colouring.
+  The `.lev` heightmap theme palette block (33,792 bytes) is now parsed into 256 named entries.
+  Ground-theme texturing data flows to the shader but is not yet wired to real ground textures.
 - **Models** — full mesh: all primitives, per-material textures, opaque / alpha-test / alpha-blend
   modes. Packed-vertex decode (signed-normalized 11/11/10) is fixed and validated across all 3,295
-  meshes. Placed at a hardcoded test transform; backface culling off (strip winding unverified);
-  skinning/bones not applied.
+  meshes. **Triangle-strip winding is fixed** (alternating flip on odd triangles), backface culling
+  enabled per-material (driven by `two_sided`), transparent sub-meshes depth-sorted back-to-front.
+  Model pass supports **multiple placed objects** with individual transforms. Skinning/bones not
+  applied.
+- **World** — `.tng` (Things) and `.wld` (World) text files are now parsed via a shared key-value
+  parser. OBJECT defs are resolved through `specialises` inheritance to `Graphic.BankIndex` (mesh
+  symbols). When loading a level, its `.tng` is parsed and OBJECT-type things are placed at their
+  world transforms (Z-up→Y-up converted) using their resolved meshes.
 - **Camera** — free-fly camera (WASD + mouse-look, scroll-wheel speed, Esc to release cursor,
   Enter to re-lock). Near/far planes derived from world extents. Default FOV 70°.
 
@@ -203,16 +210,13 @@ independent and suit splitting across people/agents; **→ after X** means it ne
   template). Sky view-projection stays horizon-locked. → done.
 
 ### Tier 1 — the visible world (the core descent)
-- **WP-TERRAIN-TEX — Landscape texturing. ‖** Decode the `.lev` heightmap theme palette (the skipped
-  33 KB block), resolve ground + **cliff/slope** textures, and build the 3-way blend + cliff shader
-  (`CTVertexLandscapeForegroundBase`: theme indices, blend, `CliffLookupU/V`). Biggest visual
-  payoff. → after WP-SCALE.
-- **WP-MODEL-POLISH — Model correctness. ‖** Fix triangle-strip winding in `mesh::expand_block`,
-  then enable `two_sided` culling; depth-sort transparent sub-meshes; honor real placement once
-  WP-SCALE lands. Small, self-contained.
-- **WP-WORLD — World/map assembly.** Parse `.wld` + `.tng` (extend the `def/text` parser into a
-  shared key-value parser), resolve thing defs → meshes, place many models in a level. → after
-  WP-MODEL-POLISH, WP-SCALE.
+- **WP-TERRAIN-TEX — Landscape texturing. ‖** ✅ Palette parsed, theme indices + blend + cliff UV
+  sent to the shader (debug visualization). Real ground texture wiring deferred. → after WP-SCALE.
+- **WP-MODEL-POLISH — Model correctness. ‖** ✅ Strip winding fixed, backface culling per-material,
+  transparent depth-sorting. Done.
+- **WP-WORLD — World/map assembly.** ✅ Shared key-value parser for `.tng`/`.wld`, OBJECT def
+  resolution with `specialises` inheritance, multiple placed objects rendering via model pass add.
+  → after WP-MODEL-POLISH, WP-SCALE.
 
 ### Tier 2 — populating and lighting
 - **WP-FLORA — Repeated/scatter meshes. ‖** Render `repeating_mesh_reps` instanced flora
@@ -241,10 +245,11 @@ that pull the others together.
 
 ## 7. Milestones
 
-- **M1 — Coherent single map.** Real scale + camera; textured terrain; correctly placed, correctly
-  scaled models. (WP-SCALE, WP-CAM, WP-TERRAIN-TEX, WP-MODEL-POLISH)
-- **M2 — A populated level.** `.tng` things placed and drawn over the terrain, with flora and
-  baseline lighting. (WP-WORLD, WP-FLORA, WP-LIGHT)
+- **M1 — Coherent single map.** ✅ Real scale + camera; theme-debug-coloured terrain with cell
+  blending; correctly placed + scaled models with culling. (WP-SCALE, WP-CAM, WP-TERRAIN-TEX,
+  WP-MODEL-POLISH)
+- **M2 — A populated level.** ✅ `.tng` things placed and drawn over the terrain. Flora (repeating
+  meshes) and baseline lighting pending. (WP-WORLD, WP-FLORA, WP-LIGHT)
 - **M3 — A believable area.** Upgraded sky, water, shadows; the area reads as "Albion." (WP-SKY2,
   WP-WATER, WP-SHADOW)
 - **M4 — Living world.** Animated characters; UI/HUD. (WP-ANIM, WP-UI)
@@ -268,10 +273,15 @@ that pull the others together.
 
 - ~~**Heightmap tile world-size & height encoding**~~ — RESOLVED (WP-SCALE). File float × 2048.0 =
   world Z. See §3e.
-- **`.lev` theme palette layout** — the two 33,792-byte palette blocks we skip; how theme indices
-  map to ground/cliff **texture names/ids** (WP-TERRAIN-TEX).
-- **Def → mesh resolution** — how a `.tng` `DefinitionType` resolves through the def system to a
-  graphic/mesh asset id (WP-WORLD).
+- ~~**`.lev` theme palette layout**~~ — RESOLVED (WP-TERRAIN-TEX). Two 33,792-byte blocks, each
+  256 entries × 132 bytes (128-byte name, 4-byte def index). Only 256 palette slots used;
+  entry 0 is the "no theme" sentinel. Resolution chain: cell palette index → `ThemePaletteEntryList`
+  (global def index) → `CEngineThemeDef` → texture bank indices.
+- ~~**Def → mesh resolution**~~ — RESOLVED (WP-WORLD). `.tng` `DefinitionType "OBJECT_X"` →
+  `OBJECT` def via `CDefinitionManager::GetDefGlobalIndexFromName` → `CThingObjectDef` → 
+  `Graphic.Type` + `Graphic.BankIndex` (mesh symbol). Defs use `#definition … specialises TEMPLATE`
+  inheritance; walk the chain to find fields.
 - **Vertex layout details** — the trailing bytes on larger `vertex_size` meshes, the `init_flags`
   bit-1 extra-attribute and animated bone-weight block (relevant to WP-ANIM).
-- **Whether to share one key-value parser** across `def`/`tng`/`wld` (recommended) vs. per-format.
+- ~~**Whether to share one key-value parser**~~ — RESOLVED. A shared `kv` module handles the
+  `Field value;` + `Start…End;` / `NewThing…EndThing;` syntax used by `.tng`, `.wld`, and `.def`.
