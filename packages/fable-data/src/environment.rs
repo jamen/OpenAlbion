@@ -7,7 +7,9 @@
 
 use crate::def::binary::{DefBinary, DefBody};
 use crate::def::names::Names;
-use crate::def::text::{DefParseError, Definition, Expr, PathSegment, Spanned, Statement, parse_def_file};
+use crate::def::text::{
+    DefParseError, Definition, Expr, FileId, PathSegment, Spanned, Statement, parse_source,
+};
 use crate::def::{EnvironmentDef, EnvironmentThemeDef};
 use derive_more::{Display, Error};
 use std::collections::HashMap;
@@ -124,9 +126,10 @@ pub struct EnvironmentConfig {
 
 impl EnvironmentConfig {
     pub fn parse(input: &str) -> Result<Self, EnvironmentParseError> {
-        let def_file = parse_def_file(input).map_err(EnvironmentParseError::Def)?;
+        let def_file =
+            parse_source(input, FileId::ANONYMOUS).map_err(EnvironmentParseError::Def)?;
         let mut themes = HashMap::new();
-        for def in &def_file.definitions {
+        for def in def_file.definitions() {
             if def.value.def_type == "ENVIRONMENT_THEME_DAY" {
                 let theme = Self::parse_theme(&def.value.name, &def.value)?;
                 themes.insert(def.value.name.clone(), theme);

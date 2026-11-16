@@ -4,6 +4,7 @@
 //!   OA_TEXT_DIR=~/doc/Fable_Anniversary-2013-02-25/Fable/Data \
 //!     cargo test -p fable-data --test lexer_headers -- --nocapture
 
+use fable_data::def::text::FileId;
 use fable_data::def::text::lexer::lex;
 use fable_data::manifest;
 use std::path::Path;
@@ -30,7 +31,7 @@ fn header_files_lex_without_errors() {
             continue;
         };
         let text = String::from_utf8_lossy(&raw).into_owned();
-        match lex(&text) {
+        match lex(&text, FileId::ANONYMOUS) {
             Ok(_) => {}
             Err(e) => errors.push(format!("{}: {} at byte {}", path.display(), e.kind, e.span.start)),
         }

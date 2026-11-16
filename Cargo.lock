@@ -397,6 +397,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "codespan-reporting"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af491d569909a7e4dee0ad7db7f5341fef5c614d5b8ec8cf765732aba3cff681"
+dependencies = [
+ "serde",
+ "termcolor",
+ "unicode-width",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -510,9 +521,34 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
 
 [[package]]
+name = "def-compiler"
+version = "0.5.0"
+dependencies = [
+ "defs",
+]
+
+[[package]]
+name = "def-compiler-sys"
+version = "0.5.0"
+dependencies = [
+ "codespan-reporting 0.13.1",
+ "def-compiler",
+]
+
+[[package]]
+name = "defc"
+version = "0.5.0"
+dependencies = [
+ "argh",
+ "codespan-reporting 0.13.1",
+ "def-compiler",
+ "defs",
+ "termcolor",
+]
+
+[[package]]
 name = "defs"
-version = "0.1.0"
-source = "git+https://github.com/jamen/fable-defs.git#d7a2f6e9acfcd9b5e589822febef6b4673839327"
+version = "0.5.0"
 dependencies = [
  "bytemuck",
  "defs-derive",
@@ -522,8 +558,7 @@ dependencies = [
 
 [[package]]
 name = "defs-derive"
-version = "0.1.0"
-source = "git+https://github.com/jamen/fable-defs.git#d7a2f6e9acfcd9b5e589822febef6b4673839327"
+version = "0.5.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1155,7 +1190,7 @@ dependencies = [
  "bitflags 2.13.1",
  "cfg-if",
  "cfg_aliases",
- "codespan-reporting",
+ "codespan-reporting 0.12.0",
  "half",
  "hashbrown 0.16.1",
  "hexf-parse",

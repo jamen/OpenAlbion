@@ -9,6 +9,7 @@
 //!   OA_TEXT_DIR=~/doc/Fable_Anniversary-2013-02-25/Fable/Data \
 //!     cargo test -p fable-data --test lexer_corpus -- --nocapture
 
+use fable_data::def::text::FileId;
 use fable_data::def::text::lexer::lex;
 use std::path::{Path, PathBuf};
 
@@ -57,7 +58,7 @@ fn corpus_lexes_without_errors() {
         let raw = std::fs::read(path).unwrap_or_else(|e| panic!("read {path:?}: {e}"));
         // Match the compiler's decode (`build.rs` uses `from_utf8_lossy`).
         let text = String::from_utf8_lossy(&raw).into_owned();
-        if let Err(e) = lex(&text) {
+        if let Err(e) = lex(&text, FileId::ANONYMOUS) {
             errors.push(format!("{}: {} at byte {}", path.display(), e.kind, e.span.start));
         }
     }

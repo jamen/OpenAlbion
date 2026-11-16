@@ -200,6 +200,31 @@ pub fn number_is_float(s: &str) -> bool {
     s.contains('.') || s.ends_with('f')
 }
 
+impl Expr {
+    /// Interpret a numeric literal as `i32` the way the pre-token parser's
+    /// `Expr::Integer(i64)` arm did — integer-shaped only, truncating `i64` →
+    /// `i32`. Float-shaped literals and non-numbers yield `None`. (Used by the
+    /// sky-keyframe reader for `Time[idx]` indices, which only accepted integer
+    /// literals.)
+    pub fn as_i32(&self) -> Option<i32> {
+        match self {
+            Expr::Number(s) if !number_is_float(s) => s.parse::<i64>().ok().map(|n| n as i32),
+            _ => None,
+        }
+    }
+
+    /// Interpret a numeric literal as `f32`, matching the pre-token parser's
+    /// keyframe-property arms (`Float(f) => f`, `Integer(i) => i as f32`).
+    /// Non-numbers yield `None`.
+    pub fn as_f32(&self) -> Option<f32> {
+        match self {
+            Expr::Number(s) if number_is_float(s) => s.trim_end_matches('f').parse::<f32>().ok(),
+            Expr::Number(s) => s.parse::<i64>().ok().map(|n| n as f32),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Call {
     pub name: String,
