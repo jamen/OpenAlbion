@@ -211,7 +211,7 @@ stable enum, *not* by LUT row — read off `BuildFromSource`:
 ```
 
 `ColourLookupColumn` is **already modelled** in
-`~/git/fable-defs/packages/defs/src/def/environment_theme_day_set.rs:21` — the renderer just
+`packages/defs/src/def/environment_theme_day_set.rs:21` — the renderer just
 never reads it.
 
 ### 3.2 Outer sky — geometry
@@ -677,7 +677,7 @@ relation — so equating them gives
 
 **The value is data.** `camera_mode.def` gives every `CAMERA_MODE` an `FOV`;
 `CAMERA_MODE_TEMPLATE` defaults to **70.0** and individual modes range 70–90. The field is
-already modelled in `~/git/fable-defs/packages/defs/src/def/camera_mode.rs:15`.
+already modelled in `packages/defs/src/def/camera_mode.rs:15`.
 
 At 70° horizontal and 16:9 the vertical FOV is **~43°**, not 70°. We were feeding the def's
 number straight into `perspective_rh` as a *vertical* FOV, giving a far too wide view — so
@@ -916,7 +916,7 @@ at a `LOCAL_DETAIL_GENERATOR` def of layers, each of objects. Measured against r
 `ENGINE_THEME` defs name a generator and **all 79 resolve by index** — the `.lev` palette's
 stale index (§3.4) is not a trap here; and **all 227 `Mesh` fields resolve to mesh assets** in
 `graphics.big`, exactly like `Graphic.BankIndex` (§3.11). No new parser was needed for any of
-it, and `fable-defs` already modelled every field.
+it, and `packages/defs` already modelled every field.
 
 **Three primitive types, decided in `CLocalDetailObjectCollectionType`'s constructor**
 (`engine_local_detail_theme.cpp:2650`), in this order — a `ZSpriteFadeEnd` wins over
@@ -1190,7 +1190,7 @@ so `expand_block` never drops anything) holds either way.
 **What is deliberately missing: clothing.** A villager resolves to
 `MESH_BS_MALE_MIDDLE_UNCLOTHED_01`, and the garments live in `APPEARANCE_MODIFIER` defs
 (`Graphics`, `HideMaterials`, `SuitPart`, `CoversBodyAreaFlags`) reached through
-`CreatureDef::initial_appearance_modifiers`. `fable-defs` does **not** decode them —
+`CreatureDef::initial_appearance_modifiers`. `packages/defs` does **not** decode them —
 `AppearanceModifierGraphics::graphics` is still `Vec<[u8; 24]>`, an undecoded blob. The base
 body meshes ship wearing undergarments, so this reads as underdressed rather than nude.
 Decided 2026-08-21 (Jamen): **draw them anyway**, per §2 rule 5 — a stated gap beats a
@@ -1245,7 +1245,7 @@ resolving** to mesh assets, over the 127 creature defs that have any. `Priority`
 980 and is read by nothing in the draw. Sub-defs are separate entries in the global index space;
 the parent's `SubDefRecord::def_index` is the join.
 
-> **Two `fable-defs` bugs found here, both in `~/git/fable-defs` rather than this repo.**
+> **Two def-library bugs found here, both in `packages/defs` rather than this crate.**
 > `RandomAppearanceMorphBodyParts*MeshesEntry::texture_id` is misnamed — the oracle
 > (`CBodyPartMesh`) calls it **`Priority`**, and its value is 1 everywhere, not a texture id.
 > And `texture_morphs` is **misparsed**: it decodes an "original texture" of
@@ -1266,7 +1266,7 @@ the parent's `SubDefRecord::def_index` is the join.
   1–3 and will pick a different variant than the original until this is closed.
 - **Skeletal morphs** (`AddSkeletalMorph`, `CTCSkeletalMorph`) — body-shape variation, 45 calls.
 - **The hero's clothing** (`CAppearanceModifierDef`). The derivation is done and the 24-byte
-  blob `fable-defs` calls `AppearanceModifierGraphicsGraphicsEntry::data` is fully specified by
+  blob `packages/defs` calls `AppearanceModifierGraphicsGraphicsEntry::data` is fully specified by
   `CAppearanceModifierGraphics::CEntry` (`fablelib/defs/tc_clothing_def.hpp:47`):
 
   ```
@@ -1930,7 +1930,7 @@ Track anything that could not be sourced. Empty is the goal.
 | `fable-data/src/local_detail/place.rs` | the draw counter's third index | **UNVERIFIED**: `GetRandomDisplacement`'s third argument is register-passed and invisible in both call sites. That a counter is incremented immediately before each draw is visible; that it starts at zero once per cell, and that the theme draw increments it too, is the reading. Plausibility-neutral — it changes *which* object stands where, not whether the result looks right |
 | `fable-data/src/local_detail/grid.rs` | `cell = floor(x + 0.5)` | **derived, not read.** The `__ftol2_sse` arguments are FPU values, but the storage forces it: the encode is `floor((offset + 0.5) · 255)` and the decode is `byte / 255 − 0.5`, so the offset must land in `[−0.5, 0.5]`. Under `floor(x)` half of every grid would clamp to the cell's far edge and the ±16 wrap would never fire |
 | `renderer/src/lib.rs` | MSAA 4× | **DIVERGENCE**, `ACCEPTED` (§6.3): the original ships AA **off**. Enabled deliberately as an improvement, per Jamen 2026-08-10; to be made configurable later |
-| `fable-data/src/appearance.rs` | `MaxTextureGroupID`'s pre-draw is not made | **UNVERIFIED**, and it is a *derived* value we cannot currently compute: it is the running max of the group ids handed to `AddTextureToMesh`, which reach us only through `texture_morphs`, which `fable-defs` misparses (§3.16). Only its zero-ness matters here — it decides whether the body-part sequence is shifted by one draw. The shipped text defs put the group id at `0` on 650 of 784 calls and on every villager def, so omitting the draw is right for the common case and wrong for ~20 defs (hobbes, bandit officers, prophets, guild apprentices, traders). Changes *which* clothed body a creature gets, never whether it gets one. Closed by fixing the `texture_morphs` parse |
+| `fable-data/src/appearance.rs` | `MaxTextureGroupID`'s pre-draw is not made | **UNVERIFIED**, and it is a *derived* value we cannot currently compute: it is the running max of the group ids handed to `AddTextureToMesh`, which reach us only through `texture_morphs`, which `packages/defs` misparses (§3.16). Only its zero-ness matters here — it decides whether the body-part sequence is shifted by one draw. The shipped text defs put the group id at `0` on 650 of 784 calls and on every villager def, so omitting the draw is right for the common case and wrong for ~20 defs (hobbes, bandit officers, prophets, guild apprentices, traders). Changes *which* clothed body a creature gets, never whether it gets one. Closed by fixing the `texture_morphs` parse |
 
 Retired from this table, all now sourced and cited in place: the `LightArray`/`LightGlobals`/
 `LightAttenuations` register offsets (§3.8, cross-checked three ways); `model.wgsl`'s invented
@@ -1969,14 +1969,14 @@ record of how it got there, not a second copy of it.
   `Graphic.BankIndex` names. **The correction that made this cheap:** the obvious route was
   `APPEARANCE_MODIFIER`, the system the previous session's derivation named — and it is the
   *wrong* system. That one dresses the **hero**, from inventory; NPCs are dressed by
-  `CRandomAppearanceMorph`, which `fable-defs` already decodes and whose draw uses **§3.13's
+  `CRandomAppearanceMorph`, which `packages/defs` already decodes and whose draw uses **§3.13's
   PRNG unchanged**. So no new parser, exactly as local detail. Sub-defs turned out to be
   separate entries in the global index space joined by `SubDefRecord::def_index`, which is the
   only indirection involved. **Two things measurement settled that the decomp could not:** the
   parts *replace* the base body rather than layering over it (their bounding boxes partition
   the same silhouette and carry clothed materials where the base carries bare ones), and
   `OnAppearanceDraw` is too mangled to have answered it. **Found and left for upstream:**
-  `fable-defs` misnames `CBodyPartMesh::Priority` as `texture_id`, and misparses
+  `packages/defs` misnames `CBodyPartMesh::Priority` as `texture_id`, and misparses
   `texture_morphs` badly enough to report `EDITORGUI_STOP_ICON` as an original texture — which
   is what blocks both the per-part texture variation and §9's `MaxTextureGroupID` entry.
   Incidental: `CAppearanceModifierGraphics::CEntry` fully specifies the 24-byte blob for when
@@ -2124,12 +2124,20 @@ record of how it got there, not a second copy of it.
 
 ```
 packages/
-  lzo/          minilzo binding
-  fable-data/   parsers: .lev .tng .wad .big .bbb, defs, textures
-  renderer/     wgpu passes + the data they draw          ← no asset formats
-  openalbion/   the engine recreation                     (bin)
-  fool/         asset CLI                                 (bin)
+  lzo/              minilzo binding
+  fable-data/       parsers: .lev .tng .wad .big .bbb, defs, textures
+  defs/             def model, text parser, binary I/O
+  defs-derive/      proc-macro derives for the def model
+  def-compiler/     lowering + build pipeline
+  defc/             def compiler CLI                       (bin)
+  def-compiler-sys/ def compiler C ABI                     (archival)
+  renderer/         wgpu passes + the data they draw       ← no asset formats
+  openalbion/       the engine recreation                  (bin)
+  fool/             asset CLI                              (bin)
 ```
+
+The def crates were merged from fable-defs v0.5.0; their architecture, verification loop,
+and commands are documented in `packages/def-compiler/AGENTS.md`.
 
 **One game binary.** `openalbion` is the project. World editing, when it happens, is a **mode
 inside it** rather than a second binary — decided 2026-08-08 after briefly trying the split,
@@ -2168,7 +2176,7 @@ The text *pass* does. See §13.5.
 ### 11.2 Why a crate and not a module
 
 - **It is its own compilation unit.** Renderer edits stop rebuilding through `fable-data`,
-  which pulls `fable-defs` from git.
+  which pulls `defs` from `packages/defs`.
 - **It is enforceable.** A module can quietly `use crate::files`; a crate cannot, because the
   dependency is not in its manifest. §11.1's invariant is checked, not remembered.
 - **It is self-contained.** The wgpu surface, the passes and their inputs are one thing with
